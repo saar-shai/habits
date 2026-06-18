@@ -225,6 +225,13 @@
                 document.getElementById("groups-container").innerHTML = 
                     `*קבוצה 1:* ${localData.groupsData.g1.join(", ")}<br>
                      *קבוצה 2:* ${localData.groupsData.g2.join(", ")}`;
+                
+                // כאן התיקון - החזרת תצוגת הזמן של ההגרלה
+                if (localData.groupsData.time) {
+                    const timeDiv = document.getElementById("draw-time");
+                    timeDiv.style.display = "block";
+                    timeDiv.innerText = `הגרלה אחרונה: ${localData.groupsData.time}`;
+                }
             }
         }
 
