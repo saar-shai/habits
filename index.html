@@ -458,21 +458,25 @@
             db.ref(`accountability_v2/players/${player}/habits/${index}/missedDays`).set(newMissedCount);
         }
 
-        function updatePenalty(player, change) {
-            let currentPenalties = localData.players[player].penalties || 0;
-            let newPenalties = currentPenalties + change;
-            if (newPenalties < 0) newPenalties = 0;
-            db.ref(`accountability_v2/players/${player}/penalties`).set(newPenalties);
-            
-            if (change > 0) {
-                let newScore = (localData.players[player].score || 0) - 15;
-                db.ref(`accountability_v2/players/${player}/score`).set(newScore);
-            } else if (change < 0) {
-                let newScore = (localData.players[player].score || 0) + 15;
-                db.ref(`accountability_v2/players/${player}/score`).set(newScore);
-            }
-        }
+       function updatePenalty(player, change) {
+    let currentPenalties = localData.players[player].penalties || 0;
 
+    // הגנה: אם מנסים להוריד קנס אבל אין קנסות, אל תעשה כלום
+    if (change < 0 && currentPenalties === 0) return;
+
+    // עדכון כמות הקנסות
+    let newPenalties = currentPenalties + change;
+    db.ref(`accountability_v2/players/${player}/penalties`).set(newPenalties);
+    
+    // עדכון ניקוד רק אם הפעולה התבצעה
+    let newScore = (localData.players[player].score || 0);
+    if (change > 0) {
+        newScore -= 15;
+    } else if (change < 0) {
+        newScore += 15;
+    }
+    db.ref(`accountability_v2/players/${player}/score`).set(newScore);
+}
         function generateGroups() {
             if (!confirm("הגרלה חדשה תאפס את הקבוצות הנוכחיות. להמשיך?")) return;
 
