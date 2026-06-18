@@ -109,7 +109,7 @@
 
         <div class="section" style="border: 1px solid #dc3545;">
             <h2 style="color: #dc3545; font-size: 16px;">אזור מנהל 🔒</h2>
-            <button class="btn btn-admin-reset" onclick="resetAllData()">⚠️ אפס את כל הנתונים (מחיקה מלאה)</button>
+            <button class="btn btn-admin-reset" onclick="resetLeagueScores()">♻️ איפוס ליגה (ניקוד וחובות בלבד)</button>
         </div>
 
         <div class="section" style="background: #fafafa; border: 1px solid #ccc; font-size: 13px; line-height: 1.6; color: #555;">
@@ -117,15 +117,13 @@
             <p style="margin: 5px 0;"><strong>➕ איך מרוויחים נקודות?</strong></p>
             <ul class="rules-list">
                 <li><strong>דיווח יומי תקין:</strong> <span style="color:#28a745; font-weight:bold;">10+ נק'</span> בכל בוקר שמסמנים עבורך שהגשת דיווח אתמול.</li>
-                <li><strong>👑 מלך ההרגל:</strong> ניתן אם ביצעת הרגל מסוים שבוע ברצף בלי אף פסילה (רצף 0/2 קבוע). על הכתר תקבל בונוס נקודות יחסי לפי כמות ההרגלים שלך מתוך סך הכל 30 נקודות שבועיות פוטנציאליות (למשל: מי שיש לו 3 הרגלים יקבל 10 נק' על הכתר, ומי שיש לו 6 הרגלים יקבל 5 נק' על הכתר) – ככה התחרות נשארת הוגנת לחלוטין!</li>
+                <li><strong>👑 מלך ההרגל:</strong> ניתן אם ביצעת הרגל מסוים שבוע ברצף בלי אף פסילה (רצף 0/2 קבוע). על הכתר תקבל בונוס נקודות יחסי לפי כמות ההרגלים שלך מתוך סך הכל 30 נקודות שבועיות פוטנציאליות.</li>
             </ul>
             <p style="margin: 5px 0; padding-top: 5px; border-top: 1px dashed #ddd;"><strong>➖ איך מאבדים נקודות?</strong></p>
             <ul class="rules-list">
-                <li><strong>⛔ קנס / פסילת הרגל (2/2):</strong> לא ביצעת הרגל יומיים ברצף? תספוג קנס של <span style="color:#dc3545; font-weight:bold;">15- נק'</span> (וחוב כספי של 5₪ לכל אחד משני חברי קבוצת התשלום שלך).</li>
-                <li><strong>❌ אי-דיווח יומי:</strong> לא שלחת עדכון בקבוצה עד סוף היום? תספוג <span style="color:#dc3545; font-weight:bold;">15- נק'</span>, רצף הדיווחים שלך (🔥) יתאפס, ויינתן קנס כספי אוטומטי.</li>
+                <li><strong>⛔ קנס / פסילת הרגל (2/2):</strong> <span style="color:#dc3545; font-weight:bold;">15- נק'</span> וחיוב כספי.</li>
+                <li><strong>❌ אי-דיווח יומי:</strong> <span style="color:#dc3545; font-weight:bold;">15- נק'</span> וקנס כספי.</li>
             </ul>
-            <p style="margin: 5px 0; padding-top: 5px; border-top: 1px dashed #ddd;"><strong>⏸️ מצב הפסקה/חופשה:</strong></p>
-            <p style="margin: 0 0 5px 0; padding-right: 5px;">מקפיא את הניקוד, רצפי הדיווחים והכתרים שלך לחלוטין, ונועל אותם מפני ירידת נקודות או קנסות בזמן שאתה בחופש/שבת.</p>
         </div>
     </div>
 
@@ -267,7 +265,7 @@
                                     ${habit.name} ${crown}
                                 </div>
                                 <div class="missed-tracker">
-                                    רצף פספוסים:
+                                    רצף איקסים:
                                     <button onclick="updateHabitMiss('${player}', ${index}, -1)">-</button>
                                     <span class="missed-count ${isDanger}">${currentMiss}/2</span>
                                     <button onclick="updateHabitMiss('${player}', ${index}, 1)">+</button>
@@ -322,13 +320,23 @@
             });
         }
         
-        function resetAllData() {
-            let code = prompt("נא להזין קוד אימות כדי לאפס את כל הנתונים (פעולה בלתי הפיכה!):");
+        // פונקציית איפוס ליגה (לא מוחקת הרגלים!)
+        function resetLeagueScores() {
+            let code = prompt("נא להזין קוד אימות כדי לאפס את הניקוד והחובות של כולם:");
             if (code === "5378") {
-                if (confirm("אתה בטוח ב-100%?! פעולה זו תמחק את כל הניקוד, הקבוצות וההרגלים של כולם!")) {
-                    db.ref('accountability_v2').set({});
-                    alert("הנתונים אופסו בהצלחה.");
-                    location.reload(); 
+                if (confirm("אתה בטוח? פעולה זו תאפס ניקוד, חובות וסטריקים, אך תשמור את רשימת ההרגלים.")) {
+                    playersList.forEach(p => {
+                        db.ref(`accountability_v2/players/${p}/score`).set(0);
+                        db.ref(`accountability_v2/players/${p}/penalties`).set(0);
+                        db.ref(`accountability_v2/players/${p}/paidPenalties`).set(0);
+                        db.ref(`accountability_v2/players/${p}/reportStreak`).set(0);
+                        if (localData.players[p].habits) {
+                            localData.players[p].habits.forEach((h, i) => {
+                                db.ref(`accountability_v2/players/${p}/habits/${i}/successStreak`).set(0);
+                            });
+                        }
+                    });
+                    alert("הליגה אופסה בהצלחה!");
                 }
             } else if (code !== null) {
                 alert("קוד שגוי!");
