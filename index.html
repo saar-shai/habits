@@ -237,4 +237,26 @@
             }
 
             text += `*מצב קנסות:* 💸\n`;
-            let totalDebt =
+            let totalDebt = 0;
+            
+            playersList.forEach(p => {
+                let pens = localData.players[p].penalties || 0;
+                let debt = pens * 10; // 5 שקלים כפול 2 אנשים
+                totalDebt += debt;
+                
+                let icon = pens === 0 ? "✅" : "❌";
+                if (pens > 0) {
+                    text += `${icon} ${p}: חייב ${debt} ש"ח (${pens} פסילות)\n`;
+                } else {
+                    text += `${icon} ${p}: נקי מפסילות!\n`;
+                }
+            });
+
+            text += `\n💰 *סך הכל חובות בקופה:* ${totalDebt} ש"ח`;
+
+            let encodedText = encodeURIComponent(text);
+            window.location.href = `whatsapp://send?text=${encodedText}`;
+        }
+    </script>
+</body>
+</html>
