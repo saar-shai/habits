@@ -16,18 +16,17 @@
         .btn-generate { background-color: #007bff; margin-top: 15px; }
         .btn-whatsapp { background-color: #25D366; margin-top: 15px; padding: 15px; font-size: 18px; }
         .btn-reset-day { background-color: #6c757d; margin-bottom: 15px; font-size: 14px; }
+        .btn-admin-reset { background-color: #dc3545; margin-top: 20px; }
         
         .section { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); margin: 15px auto; max-width: 400px; text-align: right; }
         .section h2 { text-align: center; font-size: 18px; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
         
-        /* טבלת מובילים גרפית */
         .leaderboard-section { background: #fff; border: 2px solid #ffd700; }
         .bar-row { display: flex; align-items: center; margin-bottom: 10px; font-size: 14px; }
         .bar-name { width: 65px; font-weight: bold; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .bar-track { flex-grow: 1; background: #e9ecef; border-radius: 10px; height: 20px; margin: 0 10px; position: relative; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
         .bar-fill { height: 100%; transition: width 0.8s ease-out; border-radius: 10px; }
         
-        /* צבעי מקומות */
         .rank-0 .bar-fill { background: linear-gradient(90deg, #ffc107, #ff9800); } 
         .rank-1 .bar-fill { background: linear-gradient(90deg, #e0e0e0, #9e9e9e); } 
         .rank-2 .bar-fill { background: linear-gradient(90deg, #ffb088, #d87a56); } 
@@ -104,26 +103,23 @@
         </div>
 
         <div class="section" id="players-container">
-            </div>
+        </div>
 
         <button class="btn btn-whatsapp" onclick="sendToWhatsApp()">שלח סיכום יומי לווטסאפ 💬</button>
+
+        <div class="section" style="border: 1px solid #dc3545;">
+            <h2 style="color: #dc3545; font-size: 16px;">אזור מנהל 🔒</h2>
+            <button class="btn btn-admin-reset" onclick="resetAllData()">⚠️ אפס את כל הנתונים (מחיקה מלאה)</button>
+        </div>
 
         <div class="section" style="background: #fafafa; border: 1px solid #ccc; font-size: 13px; line-height: 1.6; color: #555;">
             <h2 style="font-size: 16px; margin-bottom: 8px; color: #333;">📖 מדריך חוקי הליגה והניקוד</h2>
             <p style="margin: 5px 0;"><strong>➕ איך מרוויחים נקודות?</strong></p>
             <ul class="rules-list">
-                <li><strong>דיווח יומי תקין:</strong> <span style="color:#28a745; font-weight:bold;">10+ נק'</span> בכל בוקר שמסמנים עבורך שהגשת דיווח אתמול.</li>
-                <li><strong>👑 מלך ההרגל:</strong> ניתן אם ביצעת הרגל מסוים שבוע ברצף בלי אף פסילה (רצף 0/2 קבוע). על הכתר תקבל בונוס נקודות יחסי לפי כמות ההרגלים שלך מתוך סך הכל 30 נקודות שבועיות פוטנציאליות (למשל: מי שיש לו 3 הרגלים יקבל 10 נק' על הכתר, ומי שיש לו 6 הרגלים יקבל 5 נק' על הכתר) – ככה התחרות נשארת הוגנת </li>
+                <li><strong>דיווח יומי תקין:</strong> 10+ נק'.</li>
+                <li><strong>👑 מלך ההרגל:</strong> בונוס שבועי.</li>
             </ul>
-            <p style="margin: 5px 0; padding-top: 5px; border-top: 1px dashed #ddd;"><strong>➖ איך מאבדים נקודות?</strong></p>
-            <ul class="rules-list">
-                <li><strong>⛔ קנס / פסילת הרגל (2/2):</strong> לא ביצעת הרגל יומיים ברצף? תספוג קנס של <span style="color:#dc3545; font-weight:bold;">15- נק'</span> (וחוב כספי של 5₪ לכל אחד משני חברי קבוצת התשלום שלך).</li>
-                <li><strong>❌ אי-דיווח יומי:</strong> לא שלחת עדכון בקבוצה עד סוף היום? תספוג <span style="color:#dc3545; font-weight:bold;">15- נק'</span>, רצף הדיווחים שלך (🔥) יתאפס, ויינתן קנס כספי אוטומטי.</li>
-            </ul>
-            <p style="margin: 5px 0; padding-top: 5px; border-top: 1px dashed #ddd;"><strong>⏸️ מצב הפסקה/חופשה:</strong></p>
-            <p style="margin: 0 0 5px 0; padding-right: 5px;">מקפיא את הניקוד, רצפי הדיווחים והכתרים שלך לחלוטין, ונועל אותם מפני ירידת נקודות או קנסות בזמן שאתה בחופש/שבת.</p>
         </div>
-
     </div>
 
     <script>
@@ -196,14 +192,12 @@
         function renderLeaderboard() {
             const wrapper = document.getElementById("bars-wrapper");
             wrapper.innerHTML = "";
-            
             let sortedPlayers = [...playersList].sort((a,b) => (localData.players[b].score || 0) - (localData.players[a].score || 0));
             let maxScore = Math.max(50, ...sortedPlayers.map(p => localData.players[p].score || 0));
 
             sortedPlayers.forEach((p, index) => {
                 let score = localData.players[p].score || 0;
                 let widthPercent = Math.max(0, (score / maxScore) * 100);
-                
                 let rankClass = index <= 2 ? `rank-${index}` : "rank-other";
                 let emoji = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👤";
                 
@@ -225,8 +219,6 @@
                 document.getElementById("groups-container").innerHTML = 
                     `*קבוצה 1:* ${localData.groupsData.g1.join(", ")}<br>
                      *קבוצה 2:* ${localData.groupsData.g2.join(", ")}`;
-                
-                // כאן התיקון - החזרת תצוגת הזמן של ההגרלה
                 if (localData.groupsData.time) {
                     const timeDiv = document.getElementById("draw-time");
                     timeDiv.style.display = "block";
@@ -238,7 +230,6 @@
         function renderPlayers() {
             const container = document.getElementById("players-container");
             const yestStr = getYesterdayString();
-
             let sortedPlayers = [...playersList].sort((a,b) => (localData.players[b].score || 0) - (localData.players[a].score || 0));
 
             container.innerHTML = `
@@ -269,7 +260,7 @@
                                     ${habit.name} ${crown}
                                 </div>
                                 <div class="missed-tracker">
-                                    רצף פספוסים:
+                                    רצף:
                                     <button onclick="updateHabitMiss('${player}', ${index}, -1)">-</button>
                                     <span class="missed-count ${isDanger}">${currentMiss}/2</span>
                                     <button onclick="updateHabitMiss('${player}', ${index}, 1)">+</button>
@@ -324,13 +315,27 @@
             });
         }
         
+        // --- פונקציות ניהול ---
+
+        function resetAllData() {
+            let code = prompt("נא להזין קוד אימות כדי לאפס את כל הנתונים (פעולה בלתי הפיכה!):");
+            if (code === "5378") {
+                if (confirm("אתה בטוח ב-100%?! פעולה זו תמחק את כל הניקוד, הקבוצות וההרגלים של כולם!")) {
+                    db.ref('accountability_v2').set({});
+                    alert("הנתונים אופסו בהצלחה.");
+                    location.reload(); 
+                }
+            } else if (code !== null) {
+                alert("קוד שגוי!");
+            }
+        }
+
         function togglePause(player) {
             let isPaused = localData.players[player].isPaused;
             if (!isPaused) {
-                if (confirm(`להעביר את ${player} למצב הפסקה/חופשה?\nהסטריקים שלו יוקפאו והוא לא יקבל קנסות.`)) {
-                    let dateStr = getTodayString();
+                if (confirm(`להעביר את ${player} למצב הפסקה/חופשה?`)) {
                     db.ref(`accountability_v2/players/${player}/isPaused`).set(true);
-                    db.ref(`accountability_v2/players/${player}/pauseStartDate`).set(dateStr);
+                    db.ref(`accountability_v2/players/${player}/pauseStartDate`).set(getTodayString());
                 }
             } else {
                 if (confirm(`להחזיר את ${player} לפעילות רגילה?`)) {
@@ -349,8 +354,7 @@
         function payDebts(player) {
             let active = localData.players[player].penalties || 0;
             let currentPaid = localData.players[player].paidPenalties || 0;
-            
-            if (confirm(`האם ${player} שילם את חובו הפעיל (${active * 10} ש"ח)? החוב יתאפס.`)) {
+            if (confirm(`האם ${player} שילם את חובו הפעיל (${active * 10} ש"ח)?`)) {
                 db.ref(`accountability_v2/players/${player}/paidPenalties`).set(currentPaid + active);
                 db.ref(`accountability_v2/players/${player}/penalties`).set(0);
             }
@@ -358,12 +362,7 @@
 
         function setYesterdayStatus(player, status) {
             let pData = localData.players[player];
-            
-            if (pData.isPaused) {
-                alert(`⚠️ ${player} נמצא בהפסקה/חופשה. לא ניתן לעדכן לו סטטוס.`);
-                return;
-            }
-
+            if (pData.isPaused) { alert("⚠️ שחקן בהפסקה"); return; }
             const yestStr = getYesterdayString();
             
             if (status === 'yes') {
@@ -371,20 +370,12 @@
                     let newScore = (pData.score || 0) + 10;
                     let newStreak = (pData.reportStreak || 0) + 1;
                     db.ref(`accountability_v2/players/${player}/reportStreak`).set(newStreak);
-                    
                     if (pData.habits) {
                         let numHabits = pData.habits.length || 1;
                         let crownBonus = Math.round(30 / numHabits); 
-
                         pData.habits.forEach((h, i) => {
-                            let misses = h.missedDays || 0;
-                            let successStrk = h.successStreak || 0;
-                            if (misses === 0) {
-                                successStrk++;
-                                if (successStrk === 7) newScore += crownBonus; 
-                            } else {
-                                successStrk = 0; 
-                            }
+                            let successStrk = (h.missedDays === 0) ? (h.successStreak || 0) + 1 : 0;
+                            if (h.missedDays === 0 && successStrk === 7) newScore += crownBonus; 
                             db.ref(`accountability_v2/players/${player}/habits/${i}/successStreak`).set(successStrk);
                         });
                     }
@@ -393,15 +384,10 @@
                 }
             } else if (status === 'no') {
                 db.ref(`accountability_v2/players/${player}/reportStreak`).set(0);
-                
                 if (pData.yesterdayStatus !== 'no') {
-                    if (pData.lastReportPenaltyDate === yestStr) {
-                        alert(`⚠️ לא הוסף קנס. כבר נתת קנס על תאריך זה.`);
-                    } else {
-                        if(confirm(`להוסיף ל-${player} קנס אוטומטי על אי-דיווח אתמול (${yestStr})? זה יוריד 15 נק'.`)) {
-                            updatePenalty(player, 1);
-                            db.ref(`accountability_v2/players/${player}/lastReportPenaltyDate`).set(yestStr);
-                        }
+                    if(confirm(`להוסיף קנס על אי-דיווח?`)) {
+                        updatePenalty(player, 1);
+                        db.ref(`accountability_v2/players/${player}/lastReportPenaltyDate`).set(yestStr);
                     }
                 }
             }
@@ -409,10 +395,8 @@
         }
 
         function resetYesterdayStatus() {
-            if(confirm("בטוח שברצונך לנקות את הסטטוס של כולם? (מומלץ לעשות כל בוקר)")) {
-                playersList.forEach(p => {
-                    db.ref(`accountability_v2/players/${p}/yesterdayStatus`).set('pending');
-                });
+            if(confirm("בטוח שברצונך לנקות את הסטטוס של כולם?")) {
+                playersList.forEach(p => db.ref(`accountability_v2/players/${p}/yesterdayStatus`).set('pending'));
             }
         }
 
@@ -426,7 +410,7 @@
         }
 
         function removeHabit(player, index) {
-            if(confirm("בטוח שברצונך למחוק את ההרגל הזה?")) {
+            if(confirm("למחוק את ההרגל?")) {
                 let habits = localData.players[player].habits || [];
                 habits.splice(index, 1);
                 db.ref(`accountability_v2/players/${player}/habits`).set(habits);
@@ -435,132 +419,43 @@
 
         function updateHabitMiss(player, index, change) {
             let pData = localData.players[player];
-            if (pData.isPaused) {
-                alert(`⚠️ ${player} נמצא בהפסקה. לא מומלץ לשנות את הסטריקים שלו כעת.`);
-            }
-
             let habit = pData.habits[index];
-            let newMissedCount = (habit.missedDays || 0) + change;
-
-            if (newMissedCount < 0) newMissedCount = 0;
-
+            let newMissedCount = Math.max(0, (habit.missedDays || 0) + change);
             if (newMissedCount >= 2) {
-                alert(`⛔ פסילה! ${player} לא ביצע את ההרגל '${habit.name}' במשך יומיים ברצף.\nאל תשכח להוסיף לו קנס פה בטבלה.`);
-                let currentPenalties = pData.penalties || 0;
-                db.ref(`accountability_v2/players/${player}/penalties`).set(currentPenalties + 1);
-                
-                let newScore = (pData.score || 0) - 15;
-                db.ref(`accountability_v2/players/${player}/score`).set(newScore);
-                
+                alert(`⛔ פסילה! קנס יתווסף.`);
+                updatePenalty(player, 1);
                 newMissedCount = 0; 
             }
-
             db.ref(`accountability_v2/players/${player}/habits/${index}/missedDays`).set(newMissedCount);
         }
 
-       function updatePenalty(player, change) {
-    let currentPenalties = localData.players[player].penalties || 0;
+        function updatePenalty(player, change) {
+            let currentPenalties = localData.players[player].penalties || 0;
+            if (change < 0 && currentPenalties === 0) return;
+            db.ref(`accountability_v2/players/${player}/penalties`).set(currentPenalties + change);
+            let scoreChange = (change > 0) ? -15 : 15;
+            db.ref(`accountability_v2/players/${player}/score`).set((localData.players[player].score || 0) + scoreChange);
+        }
 
-    // הגנה: אם מנסים להוריד קנס אבל אין קנסות, אל תעשה כלום
-    if (change < 0 && currentPenalties === 0) return;
-
-    // עדכון כמות הקנסות
-    let newPenalties = currentPenalties + change;
-    db.ref(`accountability_v2/players/${player}/penalties`).set(newPenalties);
-    
-    // עדכון ניקוד רק אם הפעולה התבצעה
-    let newScore = (localData.players[player].score || 0);
-    if (change > 0) {
-        newScore -= 15;
-    } else if (change < 0) {
-        newScore += 15;
-    }
-    db.ref(`accountability_v2/players/${player}/score`).set(newScore);
-}
         function generateGroups() {
-            if (!confirm("הגרלה חדשה תאפס את הקבוצות הנוכחיות. להמשיך?")) return;
-
+            if (!confirm("הגרלה חדשה?")) return;
             let shuffled = [...playersList].sort(() => 0.5 - Math.random());
-            let timestamp = new Date().toLocaleString('he-IL');
-
-            let newGroups = {
+            db.ref('accountability_v2').child('groupsData').set({
                 g1: shuffled.slice(0, 3),
                 g2: shuffled.slice(3, 6),
-                time: timestamp
-            };
-            db.ref('accountability_v2').child('groupsData').set(newGroups);
+                time: new Date().toLocaleString('he-IL')
+            });
         }
 
         function sendToWhatsApp() {
             let text = `*🏆 עדכון ליגת ההרגלים!* 🎯\n\n`;
-            
-            if (localData.groupsData && localData.groupsData.g1) {
-                text += `*קבוצות תשלום:* קבוצה 1: ${localData.groupsData.g1.join(", ")} | קבוצה 2: ${localData.groupsData.g2.join(", ")}\n\n`;
-            }
-
-            text += `*💸 חובות פתוחים לתשלום:* \n`;
-            let hasActiveDebts = false;
-
-            playersList.forEach(p => {
-                let pData = localData.players[p];
-                let activePens = pData.penalties || 0; 
-                
-                if (activePens > 0) {
-                    hasActiveDebts = true;
-                    let myGroup = [];
-                    if (localData.groupsData && localData.groupsData.g1 && localData.groupsData.g1.includes(p)) myGroup = localData.groupsData.g1;
-                    else if (localData.groupsData && localData.groupsData.g2 && localData.groupsData.g2.includes(p)) myGroup = localData.groupsData.g2;
-                    
-                    if (myGroup.length > 0) {
-                        let oweTo = myGroup.filter(m => m !== p);
-                        let amount = activePens * 5;
-                        text += `⛔ *${p}* חייב ${amount}₪ ל${oweTo[0]} ו-${amount}₪ ל${oweTo[1]}\n`;
-                    } else {
-                        text += `⛔ *${p}* חייב ${activePens * 10}₪ סך הכל\n`;
-                    }
-                }
-            });
-
-            if (!hasActiveDebts) text += `כולם נקיים מחובות כרגע! תותחים. 💪\n`;
-            text += `➖➖➖➖➖➖➖➖\n\n`;
-
-            const yestStr = getYesterdayString();
-            text += `*🏅 טבלת הליגה ופירוט אתמול (${yestStr}):*\n\n`;
-            
+            if (localData.groupsData && localData.groupsData.g1) text += `*קבוצות:* קבוצה 1: ${localData.groupsData.g1.join(", ")} | קבוצה 2: ${localData.groupsData.g2.join(", ")}\n\n`;
             let sortedPlayers = [...playersList].sort((a,b) => (localData.players[b].score || 0) - (localData.players[a].score || 0));
-
             sortedPlayers.forEach((p, index) => {
                 let pData = localData.players[p];
-                let rank = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👤";
-                let repStreak = pData.reportStreak > 0 ? `🔥${pData.reportStreak}` : "";
-                
-                let reportedIcon = "";
-                if (pData.isPaused) {
-                    reportedIcon = "⏸️ חופשה/הקפאה";
-                } else {
-                    if (pData.yesterdayStatus === 'yes') reportedIcon = "✅ תקין";
-                    else if (pData.yesterdayStatus === 'no') reportedIcon = "❌ לא דיווח";
-                    else reportedIcon = "⏳ טרם נבדק";
-                }
-                
-                text += `${rank} *${p}* | ${pData.score} נק' ${repStreak} | דיווח: ${reportedIcon}\n`;
-
-                if (pData.habits && pData.habits.length > 0) {
-                    pData.habits.forEach(h => {
-                        let misses = h.missedDays || 0;
-                        let successStrk = h.successStreak || 0;
-                        let hIcon = misses === 0 ? "✅" : "⚠️";
-                        let crown = successStrk >= 7 ? " 👑" : "";
-                        text += `  ${hIcon} ${h.name} (${misses}/2 פסילות)${crown}\n`;
-                    });
-                } else {
-                    text += `  אין הרגלים.\n`;
-                }
-                text += `\n`; 
+                text += `${index+1}. *${p}* | ${pData.score} נק'\n`;
             });
-
-            let encodedText = encodeURIComponent(text);
-            window.location.href = `whatsapp://send?text=${encodedText}`;
+            window.location.href = `whatsapp://send?text=${encodeURIComponent(text)}`;
         }
     </script>
 </body>
