@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ניהול מחויבות - יומי</title>
+    <title>ניהול מחויבות - דיווחים וחובות</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -15,7 +15,7 @@
         .btn { padding: 10px 15px; font-size: 15px; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); width: 95%; max-width: 350px; margin: 5px auto; display: block; }
         .btn-generate { background-color: #007bff; margin-top: 15px; }
         .btn-whatsapp { background-color: #25D366; margin-top: 15px; padding: 15px; font-size: 18px; }
-        .btn-reset-day { background-color: #ff9800; margin-bottom: 15px; }
+        .btn-reset-day { background-color: #6c757d; margin-bottom: 15px; font-size: 14px; }
         
         .section { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); margin: 15px auto; max-width: 400px; text-align: right; }
         .section h2 { text-align: center; font-size: 18px; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
@@ -23,10 +23,13 @@
         /* כרטיסיית שחקן */
         .player-card { border: 1px solid #ddd; border-radius: 10px; margin-bottom: 15px; padding: 10px; background: #fafafa; }
         .player-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #007bff; padding-bottom: 8px; margin-bottom: 10px; }
-        .player-header h3 { margin: 0; font-size: 20px; color: #007bff; display: flex; flex-direction: column; gap: 5px; }
+        .player-header h3 { margin: 0; font-size: 20px; color: #007bff; }
         
-        .daily-update-label { font-size: 14px; color: #555; display: flex; align-items: center; gap: 5px; cursor: pointer; background: #e3f2fd; padding: 4px 8px; border-radius: 5px; border: 1px solid #90caf9;}
-        .daily-update-label input { transform: scale(1.2); cursor: pointer; }
+        /* אזור דיווח אתמול */
+        .yesterday-tracker { background: #e3f2fd; padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-status { padding: 5px 10px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .btn-status.active-yes { background: #d4edda; border-color: #28a745; color: #155724; }
+        .btn-status.active-no { background: #f8d7da; border-color: #dc3545; color: #721c24; }
 
         .penalty-box { background: #ffebee; padding: 5px 10px; border-radius: 6px; text-align: center; font-size: 14px;}
         .penalty-box span { font-weight: bold; color: #c62828; font-size: 18px; }
@@ -67,231 +70,4 @@
         <div class="section" id="players-container">
             </div>
 
-        <button class="btn btn-whatsapp" onclick="sendToWhatsApp()">שלח סיכום לווטסאפ 💬</button>
-
-    </div>
-
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyCMHkc6AtEYqigxFFZudz2V_sC6SfK2OVM",
-            authDomain: "habits-201f8.firebaseapp.com",
-            databaseURL: "https://habits-201f8-default-rtdb.firebaseio.com",
-            projectId: "habits-201f8",
-            storageBucket: "habits-201f8.firebasestorage.app",
-            messagingSenderId: "878310526795",
-            appId: "1:878310526795:web:a1d0b22786cd0d5003e2ce"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-
-        const playersList = ["סהר", "אורן", "אפיק", "אלמוג", "גואטה", "שבי"];
-        let localData = { players: {}, groupsData: {} };
-
-        db.ref('accountability_v2').on('value', (snapshot) => {
-            document.getElementById("loading").style.display = "none";
-            document.getElementById("app-content").style.display = "block";
-
-            const data = snapshot.val() || {};
-            if (!data.players) data.players = {};
-            
-            playersList.forEach(p => { 
-                if (!data.players[p]) data.players[p] = { penalties: 0, habits: [], updatedToday: false };
-                if (!data.players[p].habits) data.players[p].habits = [];
-                if (data.players[p].updatedToday === undefined) data.players[p].updatedToday = false;
-            });
-
-            localData = data;
-            renderApp();
-        });
-
-        function renderApp() {
-            renderGroups();
-            renderPlayers();
-        }
-
-        function renderGroups() {
-            if(localData.groupsData && localData.groupsData.g1 && localData.groupsData.g2) {
-                document.getElementById("groups-container").innerHTML = 
-                    `*קבוצה 1:* ${localData.groupsData.g1.join(", ")}<br>
-                     *קבוצה 2:* ${localData.groupsData.g2.join(", ")}`;
-                
-                if (localData.groupsData.time) {
-                    const timeDiv = document.getElementById("draw-time");
-                    timeDiv.style.display = "block";
-                    timeDiv.innerText = `הגרלה אחרונה: ${localData.groupsData.time}`;
-                }
-            }
-        }
-
-        function renderPlayers() {
-            const container = document.getElementById("players-container");
-            container.innerHTML = `
-                <h2>מעקב יומי וקנסות</h2>
-                <button class="btn btn-reset-day" onclick="resetDailyUpdates()">🌅 התחל יום חדש (איפוס דיווחים)</button>
-            `;
-
-            playersList.forEach(player => {
-                const pData = localData.players[player];
-                const debt = pData.penalties * 10; 
-                const isUpdatedChecked = pData.updatedToday ? "checked" : "";
-                
-                let habitsHTML = "";
-                if(pData.habits && pData.habits.length > 0) {
-                    pData.habits.forEach((habit, index) => {
-                        let currentMiss = habit.missedDays || 0;
-                        let isDanger = currentMiss === 1 ? "danger" : "";
-                        habitsHTML += `
-                            <div class="habit-row">
-                                <div class="habit-name">
-                                    <span onclick="removeHabit('${player}', ${index})" title="מחק הרגל">🗑️</span>
-                                    ${habit.name}
-                                </div>
-                                <div class="missed-tracker">
-                                    רצף:
-                                    <button onclick="updateHabitMiss('${player}', ${index}, -1)">-</button>
-                                    <span class="missed-count ${isDanger}">${currentMiss}/2</span>
-                                    <button onclick="updateHabitMiss('${player}', ${index}, 1)">+</button>
-                                </div>
-                            </div>
-                        `;
-                    });
-                } else {
-                    habitsHTML = `<div style="text-align:center; font-size:13px; color:#777; margin-bottom:10px;">אין הרגלים. לחץ להוספה.</div>`;
-                }
-
-                container.innerHTML += `
-                    <div class="player-card">
-                        <div class="player-header">
-                            <h3>
-                                ${player}
-                                <label class="daily-update-label">
-                                    <input type="checkbox" ${isUpdatedChecked} onchange="toggleDailyUpdate('${player}', this.checked)">
-                                    עדכן היום בקבוצה
-                                </label>
-                            </h3>
-                            <div class="penalty-box">
-                                קנסות: <span>${pData.penalties}</span><br>(חייב ${debt}₪)
-                                <div class="penalty-controls">
-                                    <button class="btn-p" onclick="updatePenalty('${player}', -1)">-</button>
-                                    <button class="btn-p" onclick="updatePenalty('${player}', 1)">+</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="habits-list">
-                            ${habitsHTML}
-                        </div>
-                        <button class="add-habit-btn" onclick="addHabit('${player}')">+ הוסף הרגל</button>
-                    </div>
-                `;
-            });
-        }
-
-        function toggleDailyUpdate(player, isChecked) {
-            db.ref(`accountability_v2/players/${player}/updatedToday`).set(isChecked);
-        }
-
-        function resetDailyUpdates() {
-            if(confirm("בטוח שברצונך לאפס את הדיווחים של כולם? (מומלץ לעשות את זה כל בוקר)")) {
-                playersList.forEach(p => {
-                    db.ref(`accountability_v2/players/${p}/updatedToday`).set(false);
-                });
-            }
-        }
-
-        function addHabit(player) {
-            let habitName = prompt(`הכנס שם הרגל חדש עבור ${player}:`);
-            if (habitName && habitName.trim() !== "") {
-                let habits = localData.players[player].habits || [];
-                habits.push({ name: habitName.trim(), missedDays: 0 });
-                db.ref(`accountability_v2/players/${player}/habits`).set(habits);
-            }
-        }
-
-        function removeHabit(player, index) {
-            if(confirm("בטוח שברצונך למחוק את ההרגל הזה?")) {
-                let habits = localData.players[player].habits || [];
-                habits.splice(index, 1);
-                db.ref(`accountability_v2/players/${player}/habits`).set(habits);
-            }
-        }
-
-        function updateHabitMiss(player, index, change) {
-            let habit = localData.players[player].habits[index];
-            let newMissedCount = (habit.missedDays || 0) + change;
-
-            if (newMissedCount < 0) newMissedCount = 0;
-
-            if (newMissedCount >= 2) {
-                alert(`⛔ פסילה! ${player} לא ביצע את ההרגל '${habit.name}' במשך יומיים ברצף.\nאל תשכח להוסיף לו קנס פה בטבלה.`);
-                let currentPenalties = localData.players[player].penalties || 0;
-                db.ref(`accountability_v2/players/${player}/penalties`).set(currentPenalties + 1);
-                newMissedCount = 0; 
-            }
-
-            db.ref(`accountability_v2/players/${player}/habits/${index}/missedDays`).set(newMissedCount);
-        }
-
-        function updatePenalty(player, change) {
-            let currentPenalties = localData.players[player].penalties || 0;
-            let newPenalties = currentPenalties + change;
-            if (newPenalties < 0) newPenalties = 0;
-            db.ref(`accountability_v2/players/${player}/penalties`).set(newPenalties);
-        }
-
-        function generateGroups() {
-            if (!confirm("הגרלה חדשה תאפס את הקבוצות הנוכחיות. להמשיך?")) return;
-
-            let shuffled = [...playersList].sort(() => 0.5 - Math.random());
-            let timestamp = new Date().toLocaleString('he-IL');
-
-            let newGroups = {
-                g1: shuffled.slice(0, 3),
-                g2: shuffled.slice(3, 6),
-                time: timestamp
-            };
-            db.ref('accountability_v2/groupsData').set(newGroups);
-        }
-
-        function sendToWhatsApp() {
-            let text = `*עדכון מחויבות יומי!* 🎯\n\n`;
-            
-            if (localData.groupsData && localData.groupsData.g1) {
-                text += `*קבוצות:* קבוצה 1: ${localData.groupsData.g1.join(", ")} | קבוצה 2: ${localData.groupsData.g2.join(", ")}\n\n`;
-            }
-
-            text += `*סיכום יומי:* 📝\n`;
-            
-            let totalDebt = 0;
-            playersList.forEach(p => {
-                let pData = localData.players[p];
-                
-                // יצירת מחרוזת הרגלים
-                let habitsArr = [];
-                if (pData.habits && pData.habits.length > 0) {
-                    pData.habits.forEach(h => {
-                        habitsArr.push(`${h.name} ${h.missedDays || 0}/2`);
-                    });
-                }
-                let habitsStr = habitsArr.length > 0 ? habitsArr.join(", ") : "אין הרגלים";
-                
-                // סטטוס דיווח יומי
-                let reportedIcon = pData.updatedToday ? "✅ עדכן יומי" : "❌ לא עדכן יומי";
-                
-                // קנסות
-                let pens = pData.penalties || 0;
-                let debt = pens * 10;
-                totalDebt += debt;
-                let penaltyStr = pens > 0 ? `חוב: ${debt}₪` : "אין קנס";
-
-                text += `*${p}:* ${habitsStr} | ${reportedIcon} | ${penaltyStr}\n`;
-            });
-
-            text += `\n💰 *סה"כ חובות בקופה:* ${totalDebt} ש"ח`;
-
-            let encodedText = encodeURIComponent(text);
-            window.location.href = `whatsapp://send?text=${encodedText}`;
-        }
-    </script>
-</body>
-</html>
+        <button class="btn btn-whatsapp" onclick="sendToWhatsApp()">שלח
