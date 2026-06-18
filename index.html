@@ -3,68 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ניהול קבוצת מחויבות - LIVE</title>
+    <title>ניהול מחויבות - הרגלים אישיים</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f4f9; padding: 15px; color: #333; margin: 0; }
-        h1 { color: #333; font-size: 24px; }
-        h2 { color: #555; font-size: 18px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
-        .btn { padding: 12px 20px; font-size: 16px; color: white; border: none; border-radius: 8px; cursor: pointer; margin: 8px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 90%; max-width: 300px; }
-        .btn-generate { background-color: #007bff; }
-        .btn-generate:hover { background-color: #0056b3; }
-        .btn-whatsapp { background-color: #25D366; }
-        .btn-whatsapp:hover { background-color: #1ebe57; }
-        .btn-reset { background-color: #6c757d; font-size: 14px; padding: 8px 15px; }
+        body { font-family: Arial, sans-serif; text-align: center; background-color: #f0f2f5; padding: 10px; color: #333; margin: 0; }
+        h1 { color: #1c1e21; font-size: 22px; margin-bottom: 5px; }
         
-        .section { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 15px auto; max-width: 400px; }
+        .btn { padding: 10px 15px; font-size: 15px; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); width: 95%; max-width: 350px; margin: 5px auto; display: block; }
+        .btn-generate { background-color: #007bff; margin-top: 15px; }
+        .btn-whatsapp { background-color: #25D366; margin-top: 15px; padding: 15px; font-size: 18px; }
         
-        .player-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 5px; border-bottom: 1px solid #eee; }
-        .player-name { font-size: 18px; font-weight: bold; width: 80px; text-align: right; }
-        .controls { display: flex; align-items: center; gap: 10px; }
-        .btn-count { background-color: #e9ecef; color: #333; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 24px; cursor: pointer; font-weight: bold; }
-        .btn-count:active { background-color: #ced4da; }
+        .section { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); margin: 15px auto; max-width: 400px; text-align: right; }
+        .section h2 { text-align: center; font-size: 18px; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
         
-        /* צבעים דינמיים לפסילות */
-        .score { font-size: 20px; font-weight: bold; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
-        .score-0 { background-color: #28a745; } /* ירוק */
-        .score-1 { background-color: #ffc107; color: #333; text-shadow: none; } /* צהוב */
-        .score-2 { background-color: #fd7e14; } /* כתום */
-        .score-3 { background-color: #dc3545; } /* אדום */
+        /* כרטיסיית שחקן */
+        .player-card { border: 1px solid #ddd; border-radius: 10px; margin-bottom: 15px; padding: 10px; background: #fafafa; }
+        .player-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #007bff; padding-bottom: 8px; margin-bottom: 10px; }
+        .player-header h3 { margin: 0; font-size: 20px; color: #007bff; }
+        
+        .penalty-box { background: #ffebee; padding: 5px 10px; border-radius: 6px; text-align: center; }
+        .penalty-box span { font-weight: bold; color: #c62828; font-size: 18px; }
+        .penalty-controls { display: flex; gap: 5px; justify-content: center; align-items: center; margin-top: 3px; }
+        .btn-p { background: #ffcdd2; border: none; border-radius: 4px; width: 25px; height: 25px; font-weight: bold; cursor: pointer; color: #c62828; }
+        
+        /* אזור הרגלים */
+        .habit-row { display: flex; justify-content: space-between; align-items: center; background: white; padding: 8px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 8px; }
+        .habit-name { font-weight: bold; font-size: 14px; max-width: 120px; word-wrap: break-word; }
+        .habit-name span { cursor: pointer; color: #dc3545; font-size: 12px; margin-right: 5px; }
+        
+        .missed-tracker { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #555; background: #fff3cd; padding: 4px 8px; border-radius: 5px; }
+        .missed-tracker button { background: #ffecb5; border: 1px solid #ffda6a; border-radius: 4px; width: 25px; height: 25px; font-weight: bold; cursor: pointer; }
+        .missed-count { font-weight: bold; font-size: 16px; min-width: 15px; text-align: center; }
+        .missed-count.danger { color: red; }
 
-        .groups-output { display: flex; justify-content: space-around; margin-top: 15px; font-size: 16px; font-weight: bold; line-height: 1.6; }
-        .timestamp { font-size: 12px; color: #dc3545; font-weight: bold; margin-top: 10px; background: #ffe6e6; padding: 5px; border-radius: 5px; }
+        .add-habit-btn { background: none; border: 1px dashed #007bff; color: #007bff; width: 100%; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; }
         
-        #loading { color: #007bff; font-weight: bold; margin-top: 20px; }
+        .groups-output { text-align: center; font-size: 16px; font-weight: bold; line-height: 1.6; margin-top: 10px; }
+        .timestamp { font-size: 12px; color: #dc3545; font-weight: bold; text-align: center; margin-bottom: 10px; }
+        #loading { text-align: center; color: #007bff; font-weight: bold; margin-top: 20px; }
     </style>
 </head>
 <body>
 
-    <h1>ניהול מחויבות 🎯 <span style="font-size: 12px; color: red;">LIVE</span></h1>
+    <h1>ניהול הרגלים וקנסות 🎯</h1>
     <div id="loading">מתחבר לשרת הנתונים...</div>
 
-    <div class="section" id="app-content" style="display: none;">
-        <h2>קבוצות תשלום (3-3)</h2>
-        <button class="btn btn-generate" onclick="generateGroups()">🎲 הגרל קבוצות מחדש</button>
-        <div id="draw-time" class="timestamp" style="display: none;"></div>
-        <div class="groups-output">
-            <div id="group1-out"></div>
-            <div id="group2-out"></div>
+    <div id="app-content" style="display: none;">
+        
+        <div class="section">
+            <h2>קבוצות תשלום (3-3)</h2>
+            <div id="draw-time" class="timestamp" style="display: none;"></div>
+            <div class="groups-output" id="groups-container"></div>
+            <button class="btn btn-generate" onclick="generateGroups()">🎲 הגרל קבוצות מחדש</button>
         </div>
-    </div>
 
-    <div class="section" id="tracker-section" style="display: none;">
-        <h2>פסילות השבוע (עד 3)</h2>
-        <div id="tracker"></div>
-        <br>
-        <button class="btn btn-reset" onclick="resetStrikes()">🔄 איפוס פסילות לשבוע חדש</button>
-    </div>
+        <div class="section" id="players-container">
+            </div>
 
-    <button class="btn btn-whatsapp" onclick="sendToWhatsApp()">שלח ישירות לווטסאפ 💬</button>
+        <button class="btn btn-whatsapp" onclick="sendToWhatsApp()">שלח סיכום לווטסאפ 💬</button>
+
+    </div>
 
     <script>
+        // חיבור ל-Firebase שלך
         const firebaseConfig = {
             apiKey: "AIzaSyCMHkc6AtEYqigxFFZudz2V_sC6SfK2OVM",
             authDomain: "habits-201f8.firebaseapp.com",
@@ -78,93 +82,159 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        const players = ["סהר", "אורן", "אפיק", "אלמוג", "גואטה", "שבי"];
-        let localData = { strikes: {}, groupsData: { g1: [], g2: [], time: "" } };
+        const playersList = ["סהר", "אורן", "אפיק", "אלמוג", "גואטה", "שבי"];
+        let localData = { players: {}, groupsData: {} };
 
-        db.ref('accountability').on('value', (snapshot) => {
+        // האזנה לנתונים - שימוש בנתיב חדש (accountability_v2) בגלל שינוי המבנה
+        db.ref('accountability_v2').on('value', (snapshot) => {
             document.getElementById("loading").style.display = "none";
             document.getElementById("app-content").style.display = "block";
-            document.getElementById("tracker-section").style.display = "block";
 
-            const data = snapshot.val();
-            if (data) localData = data;
+            const data = snapshot.val() || {};
+            if (!data.players) data.players = {};
             
-            if (!localData.strikes) localData.strikes = {};
-            players.forEach(p => { if (localData.strikes[p] === undefined) localData.strikes[p] = 0; });
+            // אתחול משתתפים אם הם חסרים
+            playersList.forEach(p => { 
+                if (!data.players[p]) data.players[p] = { penalties: 0, habits: [] };
+                if (!data.players[p].habits) data.players[p].habits = [];
+            });
 
-            renderTracker();
-            renderGroups();
-        }, (error) => {
-            document.getElementById("loading").innerHTML = "שגיאת התחברות. ודא שה-Rules פתוחים ל-true.";
+            localData = data;
+            renderApp();
         });
 
-        // פונקציה לקביעת צבע הרקע של הפסילה
-        function getScoreClass(score) {
-            if (score === 0) return "score-0";
-            if (score === 1) return "score-1";
-            if (score === 2) return "score-2";
-            return "score-3"; // 3 ומעלה
+        function renderApp() {
+            renderGroups();
+            renderPlayers();
         }
 
-        function renderTracker() {
-            const trackerDiv = document.getElementById("tracker");
-            trackerDiv.innerHTML = "";
-            players.forEach(player => {
-                let currentScore = localData.strikes[player] || 0;
-                trackerDiv.innerHTML += `
-                    <div class="player-row">
-                        <div class="player-name">${player}</div>
-                        <div class="controls">
-                            <button class="btn-count" onclick="updateStrike('${player}', 1)">+</button>
-                            <div class="score ${getScoreClass(currentScore)}">${currentScore}</div>
-                            <button class="btn-count" onclick="updateStrike('${player}', -1)">-</button>
+        function renderGroups() {
+            if(localData.groupsData && localData.groupsData.g1 && localData.groupsData.g2) {
+                document.getElementById("groups-container").innerHTML = 
+                    `*קבוצה 1:* ${localData.groupsData.g1.join(", ")}<br>
+                     *קבוצה 2:* ${localData.groupsData.g2.join(", ")}`;
+                
+                if (localData.groupsData.time) {
+                    const timeDiv = document.getElementById("draw-time");
+                    timeDiv.style.display = "block";
+                    timeDiv.innerText = `הגרלה אחרונה: ${localData.groupsData.time}`;
+                }
+            }
+        }
+
+        function renderPlayers() {
+            const container = document.getElementById("players-container");
+            container.innerHTML = "<h2>מעקב הרגלים וקנסות</h2>";
+
+            playersList.forEach(player => {
+                const pData = localData.players[player];
+                const debt = pData.penalties * 5;
+                
+                let habitsHTML = "";
+                if(pData.habits && pData.habits.length > 0) {
+                    pData.habits.forEach((habit, index) => {
+                        let isDanger = habit.missedDays === 1 ? "danger" : "";
+                        habitsHTML += `
+                            <div class="habit-row">
+                                <div class="habit-name">
+                                    <span onclick="removeHabit('${player}', ${index})" title="מחק הרגל">🗑️</span>
+                                    ${habit.name}
+                                </div>
+                                <div class="missed-tracker">
+                                    רצף:
+                                    <button onclick="updateHabitMiss('${player}', ${index}, -1)">-</button>
+                                    <span class="missed-count ${isDanger}">${habit.missedDays || 0}</span>
+                                    <button onclick="updateHabitMiss('${player}', ${index}, 1)">+</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    habitsHTML = `<div style="text-align:center; font-size:13px; color:#777; margin-bottom:10px;">אין הרגלים. לחץ להוספה.</div>`;
+                }
+
+                container.innerHTML += `
+                    <div class="player-card">
+                        <div class="player-header">
+                            <h3>${player}</h3>
+                            <div class="penalty-box">
+                                קנסות: <span>${pData.penalties}</span> (${debt}₪)
+                                <div class="penalty-controls">
+                                    <button class="btn-p" onclick="updatePenalty('${player}', -1)">-</button>
+                                    <button class="btn-p" onclick="updatePenalty('${player}', 1)">+</button>
+                                </div>
+                            </div>
                         </div>
+                        <div class="habits-list">
+                            ${habitsHTML}
+                        </div>
+                        <button class="add-habit-btn" onclick="addHabit('${player}')">+ הוסף הרגל חדש</button>
                     </div>
                 `;
             });
         }
 
-        function renderGroups() {
-            if(localData.groupsData && localData.groupsData.g1 && localData.groupsData.g2) {
-                document.getElementById("group1-out").innerHTML = `*קבוצה 1:*<br>${localData.groupsData.g1.join("<br>")}`;
-                document.getElementById("group2-out").innerHTML = `*קבוצה 2:*<br>${localData.groupsData.g2.join("<br>")}`;
+        // --- פונקציות לוגיקה ועדכון השרת ---
+
+        function addHabit(player) {
+            let habitName = prompt(`הכנס שם הרגל חדש עבור ${player}:`);
+            if (habitName && habitName.trim() !== "") {
+                let habits = localData.players[player].habits || [];
+                habits.push({ name: habitName.trim(), missedDays: 0 });
+                db.ref(`accountability_v2/players/${player}/habits`).set(habits);
+            }
+        }
+
+        function removeHabit(player, index) {
+            if(confirm("בטוח שברצונך למחוק את ההרגל הזה?")) {
+                let habits = localData.players[player].habits || [];
+                habits.splice(index, 1);
+                db.ref(`accountability_v2/players/${player}/habits`).set(habits);
+            }
+        }
+
+        function updateHabitMiss(player, index, change) {
+            let habit = localData.players[player].habits[index];
+            let newMissedCount = (habit.missedDays || 0) + change;
+
+            if (newMissedCount < 0) newMissedCount = 0;
+
+            // אם הגיע ל-2 יומיים ברצף -> קנס!
+            if (newMissedCount >= 2) {
+                alert(`⛔ פסילה! ${player} לא ביצע את ההרגל '${habit.name}' יומיים ברצף.\nנוסף קנס של 5 ש"ח.`);
                 
-                if (localData.groupsData.time) {
-                    const timeDiv = document.getElementById("draw-time");
-                    timeDiv.style.display = "block";
-                    timeDiv.innerText = `הגרלה אחרונה בוצעה ב: ${localData.groupsData.time}`;
-                }
+                // עדכון קנסות
+                let currentPenalties = localData.players[player].penalties || 0;
+                db.ref(`accountability_v2/players/${player}/penalties`).set(currentPenalties + 1);
+                
+                // איפוס הרצף של ההרגל הספציפי
+                newMissedCount = 0; 
             }
+
+            db.ref(`accountability_v2/players/${player}/habits/${index}/missedDays`).set(newMissedCount);
         }
 
-        function updateStrike(player, change) {
-            let newScore = (localData.strikes[player] || 0) + change;
-            if (newScore < 0) newScore = 0;
-            if (newScore > 3) newScore = 3; // הגבלה לעד 3 פסילות
-            db.ref('accountability/strikes/' + player).set(newScore);
-        }
-
-        function resetStrikes() {
-            if (confirm("בטוח שאתה רוצה לאפס את הפסילות של כולם ל-0?")) {
-                players.forEach(p => db.ref('accountability/strikes/' + p).set(0));
-            }
+        function updatePenalty(player, change) {
+            let currentPenalties = localData.players[player].penalties || 0;
+            let newPenalties = currentPenalties + change;
+            if (newPenalties < 0) newPenalties = 0;
+            db.ref(`accountability_v2/players/${player}/penalties`).set(newPenalties);
         }
 
         function generateGroups() {
-            if (!confirm("שים לב! הגרלה חדשה תאפס את הקבוצות הנוכחיות וכולם יראו מתי בוצעה ההגרלה. להמשיך?")) return;
+            if (!confirm("הגרלה חדשה תאפס את הקבוצות הנוכחיות. להמשיך?")) return;
 
-            let shuffled = [...players].sort(() => 0.5 - Math.random());
-            let timestamp = new Date().toLocaleString('he-IL'); // תאריך ושעה בעברית
+            let shuffled = [...playersList].sort(() => 0.5 - Math.random());
+            let timestamp = new Date().toLocaleString('he-IL');
 
             let newGroups = {
                 g1: shuffled.slice(0, 3),
                 g2: shuffled.slice(3, 6),
                 time: timestamp
             };
-            db.ref('accountability/groupsData').set(newGroups);
+            db.ref('accountability_v2/groupsData').set(newGroups);
         }
 
-        // שליחה מותאמת לנייד + חישוב קנסות
         function sendToWhatsApp() {
             let text = `*עדכון מחויבות שבועי!* 🎯\n\n`;
             
@@ -172,20 +242,24 @@
                 text += `*חלוקה לקבוצות:*\nקבוצה 1: ${localData.groupsData.g1.join(", ")}\nקבוצה 2: ${localData.groupsData.g2.join(", ")}\n\n`;
             }
 
-            text += `*מצב פסילות:*\n`;
+            text += `*מצב קנסות:* 💸\n`;
             let totalDebt = 0;
-            players.forEach(p => {
-                let score = localData.strikes[p] || 0;
-                let debt = score * 5;
+            
+            playersList.forEach(p => {
+                let pens = localData.players[p].penalties || 0;
+                let debt = pens * 5;
                 totalDebt += debt;
                 
-                let icon = score === 0 ? "✅" : score === 1 ? "⚠️" : score === 2 ? "❌" : "⛔";
-                text += `${icon} ${p}: ${score} פסילות (חייב ${debt} ש"ח)\n`;
+                let icon = pens === 0 ? "✅" : "❌";
+                if (pens > 0) {
+                    text += `${icon} ${p}: חייב ${debt} ש"ח (${pens} פסילות)\n`;
+                } else {
+                    text += `${icon} ${p}: נקי מפסילות!\n`;
+                }
             });
 
-            text += `\n💸 *סך הכל קנסות בקופה:* ${totalDebt} ש"ח`;
+            text += `\n💰 *סך הכל בקופה:* ${totalDebt} ש"ח`;
 
-            // קידוד הטקסט לפורמט של כתובת אינטרנט ופתיחת אפליקציית ווטסאפ
             let encodedText = encodeURIComponent(text);
             window.location.href = `whatsapp://send?text=${encodedText}`;
         }
