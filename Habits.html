@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ניהול קבוצת מחויבות - LIVE</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f4f9; padding: 15px; color: #333; margin: 0; }
+        h1 { color: #333; font-size: 24px; }
+        h2 { color: #555; font-size: 18px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+        .btn { padding: 12px 20px; font-size: 16px; color: white; border: none; border-radius: 8px; cursor: pointer; margin: 8px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 90%; max-width: 300px; }
+        .btn-generate { background-color: #007bff; }
+        .btn-generate:hover { background-color: #0056b3; }
+        .btn-whatsapp { background-color: #25D366; }
+        .btn-whatsapp:hover { background-color: #1ebe57; }
+        .btn-reset { background-color: #6c757d; font-size: 14px; padding: 8px 15px; }
+        
+        .section { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 15px auto; max-width: 400px; }
+        
+        .player-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 5px; border-bottom: 1px solid #eee; }
+        .player-name { font-size: 18px; font-weight: bold; width: 80px; text-align: right; }
+        .controls { display: flex; align-items: center; gap: 10px; }
+        .btn-count { background-color: #e9ecef; color: #333; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 24px; cursor: pointer; font-weight: bold; }
+        .btn-count:active { background-color: #ced4da; }
+        
+        /* צבעים דינמיים לפסילות */
+        .score { font-size: 20px; font-weight: bold; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
+        .score-0 { background-color: #28a745; } /* ירוק */
+        .score-1 { background-color: #ffc107; color: #333; text-shadow: none; } /* צהוב */
+        .score-2 { background-color: #fd7e14; } /* כתום */
+        .score-3 { background-color: #dc3545; } /* אדום */
+
+        .groups-output { display: flex; justify-content: space-around; margin-top: 15px; font-size: 16px; font-weight: bold; line-height: 1.6; }
+        .timestamp { font-size: 12px; color: #dc3545; font-weight: bold; margin-top: 10px; background: #ffe6e6; padding: 5px; border-radius: 5px; }
+        
+        #loading { color: #007bff; font-weight: bold; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <h1>ניהול מחויבות 🎯 <span style="font-size: 12px; color: red;">LIVE</span></h1>
+    <div id="loading">מתחבר לשרת הנתונים...</div>
+
+    <div class="section" id="app-content" style="display: none;">
+        <h2>קבוצות תשלום (3-3)</h2>
+        <button class="btn btn-generate" onclick="generateGroups()">🎲 הגרל קבוצות מחדש</button>
+        <div id="draw-time" class="timestamp" style="display: none;"></div>
+        <div class="groups-output">
+            <div id="group1-out"></div>
+            <div id="group2-out"></div>
+        </div>
+    </div>
+
+    <div class="section" id="tracker-section" style="display: none;">
+        <h2>פסילות השבוע (עד 3)</h2>
+        <div id="tracker"></div>
+        <br>
+        <button class="btn btn-reset" onclick="resetStrikes()">🔄 איפוס פסילות לשבוע חדש</button>
+    </div>
+
+    <button class="btn btn-whatsapp" onclick="sendToWhatsApp()">שלח ישירות לווטסאפ 💬</button>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCMHkc6AtEYqigxFFZudz2V_sC6SfK2OVM",
+            authDomain: "habits-201f8.firebaseapp.com",
+            databaseURL: "https://habits-201f8-default-rtdb.firebaseio.com",
+            projectId: "habits-201f8",
+            storageBucket: "habits-201f8.firebasestorage.app",
+            messagingSenderId: "878310526795",
+            appId: "1:878310526795:web:a1d0b22786cd0d5003e2ce"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        const players = ["סהר", "אורן", "אפיק", "אלמוג", "גואטה", "שבי"];
+        let localData = { strikes: {}, groupsData: { g1: [], g2: [], time: "" } };
+
+        db.ref('accountability').on('value', (snapshot) => {
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("app-content").style.display = "block";
+            document.getElementById("tracker-section").style.display = "block";
+
+            const data = snapshot.val();
+            if (data) localData = data;
+            
+            if (!localData.strikes) localData.strikes = {};
+            players.forEach(p => { if (localData.strikes[p] === undefined) localData.strikes[p] = 0; });
+
+            renderTracker();
+            renderGroups();
+        }, (error) => {
+            document.getElementById("loading").innerHTML = "שגיאת התחברות. ודא שה-Rules פתוחים ל-true.";
+        });
+
+        // פונקציה לקביעת צבע הרקע של הפסילה
+        function getScoreClass(score) {
+            if (score === 0) return "score-0";
+            if (score === 1) return "score-1";
+            if (score === 2) return "score-2";
+            return "score-3"; // 3 ומעלה
+        }
+
+        function renderTracker() {
+            const trackerDiv = document.getElementById("tracker");
+            trackerDiv.innerHTML = "";
+            players.forEach(player => {
+                let currentScore = localData.strikes[player] || 0;
+                trackerDiv.innerHTML += `
+                    <div class="player-row">
+                        <div class="player-name">${player}</div>
+                        <div class="controls">
+                            <button class="btn-count" onclick="updateStrike('${player}', 1)">+</button>
+                            <div class="score ${getScoreClass(currentScore)}">${currentScore}</div>
+                            <button class="btn-count" onclick="updateStrike('${player}', -1)">-</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderGroups() {
+            if(localData.groupsData && localData.groupsData.g1 && localData.groupsData.g2) {
+                document.getElementById("group1-out").innerHTML = `*קבוצה 1:*<br>${localData.groupsData.g1.join("<br>")}`;
+                document.getElementById("group2-out").innerHTML = `*קבוצה 2:*<br>${localData.groupsData.g2.join("<br>")}`;
+                
+                if (localData.groupsData.time) {
+                    const timeDiv = document.getElementById("draw-time");
+                    timeDiv.style.display = "block";
+                    timeDiv.innerText = `הגרלה אחרונה בוצעה ב: ${localData.groupsData.time}`;
+                }
+            }
+        }
+
+        function updateStrike(player, change) {
+            let newScore = (localData.strikes[player] || 0) + change;
+            if (newScore < 0) newScore = 0;
+            if (newScore > 3) newScore = 3; // הגבלה לעד 3 פסילות
+            db.ref('accountability/strikes/' + player).set(newScore);
+        }
+
+        function resetStrikes() {
+            if (confirm("בטוח שאתה רוצה לאפס את הפסילות של כולם ל-0?")) {
+                players.forEach(p => db.ref('accountability/strikes/' + p).set(0));
+            }
+        }
+
+        function generateGroups() {
+            if (!confirm("שים לב! הגרלה חדשה תאפס את הקבוצות הנוכחיות וכולם יראו מתי בוצעה ההגרלה. להמשיך?")) return;
+
+            let shuffled = [...players].sort(() => 0.5 - Math.random());
+            let timestamp = new Date().toLocaleString('he-IL'); // תאריך ושעה בעברית
+
+            let newGroups = {
+                g1: shuffled.slice(0, 3),
+                g2: shuffled.slice(3, 6),
+                time: timestamp
+            };
+            db.ref('accountability/groupsData').set(newGroups);
+        }
+
+        // שליחה מותאמת לנייד + חישוב קנסות
+        function sendToWhatsApp() {
+            let text = `*עדכון מחויבות שבועי!* 🎯\n\n`;
+            
+            if (localData.groupsData && localData.groupsData.g1) {
+                text += `*חלוקה לקבוצות:*\nקבוצה 1: ${localData.groupsData.g1.join(", ")}\nקבוצה 2: ${localData.groupsData.g2.join(", ")}\n\n`;
+            }
+
+            text += `*מצב פסילות:*\n`;
+            let totalDebt = 0;
+            players.forEach(p => {
+                let score = localData.strikes[p] || 0;
+                let debt = score * 5;
+                totalDebt += debt;
+                
+                let icon = score === 0 ? "✅" : score === 1 ? "⚠️" : score === 2 ? "❌" : "⛔";
+                text += `${icon} ${p}: ${score} פסילות (חייב ${debt} ש"ח)\n`;
+            });
+
+            text += `\n💸 *סך הכל קנסות בקופה:* ${totalDebt} ש"ח`;
+
+            // קידוד הטקסט לפורמט של כתובת אינטרנט ופתיחת אפליקציית ווטסאפ
+            let encodedText = encodeURIComponent(text);
+            window.location.href = `whatsapp://send?text=${encodedText}`;
+        }
+    </script>
+</body>
+</html>
