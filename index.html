@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ניהול מחויבות - חובות ודיווחים</title>
+    <title>ניהול מחויבות - ליגת הרגלים</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -20,11 +20,19 @@
         .section { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); margin: 15px auto; max-width: 400px; text-align: right; }
         .section h2 { text-align: center; font-size: 18px; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
         
-        .player-card { border: 1px solid #ddd; border-radius: 10px; margin-bottom: 15px; padding: 10px; background: #fafafa; }
+        .player-card { border: 1px solid #ddd; border-radius: 10px; margin-bottom: 15px; padding: 10px; background: #fafafa; position: relative; }
+        .player-card.paused { background: #e9ecef; opacity: 0.8; } /* סגנון לשחקן בהפסקה */
+
         .player-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #007bff; padding-bottom: 8px; margin-bottom: 10px; }
-        .player-header h3 { margin: 0; font-size: 20px; color: #007bff; }
         
-        /* עיצוב חובות מתקדם */
+        .player-title { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+        .player-title h3 { margin: 0; font-size: 20px; color: #007bff; }
+        .score-badge { font-size: 13px; font-weight: bold; background: #fff3cd; color: #856404; padding: 3px 8px; border-radius: 12px; border: 1px solid #ffeeba; }
+        .streak-badge { font-size: 12px; color: #dc3545; font-weight: bold; }
+        
+        .btn-pause { background: none; border: none; cursor: pointer; font-size: 11px; text-decoration: underline; color: #6c757d; padding: 0; margin-top: 5px; }
+        .pause-text { font-size: 11px; color: #dc3545; font-weight: bold; }
+
         .penalty-container { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
         .penalty-box { background: #ffebee; padding: 5px 10px; border-radius: 6px; text-align: center; font-size: 14px; border: 1px solid #ffcdd2;}
         .penalty-box span { font-weight: bold; color: #c62828; font-size: 18px; }
@@ -43,6 +51,7 @@
         .habit-row { display: flex; justify-content: space-between; align-items: center; background: white; padding: 8px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 8px; }
         .habit-name { font-weight: bold; font-size: 14px; max-width: 120px; word-wrap: break-word; }
         .habit-name span { cursor: pointer; color: #dc3545; font-size: 12px; margin-right: 5px; }
+        .crown-icon { color: #ffc107; font-size: 14px; margin-left: 3px; }
         
         .missed-tracker { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #555; background: #fff3cd; padding: 4px 8px; border-radius: 5px; }
         .missed-tracker button { background: #ffecb5; border: 1px solid #ffda6a; border-radius: 4px; width: 25px; height: 25px; font-weight: bold; cursor: pointer; }
@@ -95,10 +104,14 @@
         const playersList = ["סהר", "אורן", "אפיק", "אלמוג", "גואטה", "שבי"];
         let localData = { players: {}, groupsData: {} };
 
-        // חישוב תאריך של אתמול למניעת קנסות כפולים
         function getYesterdayString() {
             let d = new Date();
             d.setDate(d.getDate() - 1);
+            return d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
+        }
+        
+        function getTodayString() {
+            let d = new Date();
             return d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
         }
 
@@ -116,6 +129,20 @@
                 if (data.players[p].penalties === undefined) data.players[p].penalties = 0; 
                 if (data.players[p].paidPenalties === undefined) data.players[p].paidPenalties = 0; 
                 if (data.players[p].lastReportPenaltyDate === undefined) data.players[p].lastReportPenaltyDate = "";
+                
+                if (data.players[p].score === undefined) data.players[p].score = 0;
+                if (data.players[p].reportStreak === undefined) data.players[p].reportStreak = 0;
+                if (data.players[p].lastScoredDate === undefined) data.players[p].lastScoredDate = "";
+                
+                // משתני הפסקה/הקפאה
+                if (data.players[p].isPaused === undefined) data.players[p].isPaused = false;
+                if (data.players[p].pauseStartDate === undefined) data.players[p].pauseStartDate = "";
+                
+                if (data.players[p].habits) {
+                    data.players[p].habits.forEach(h => {
+                        if (h.successStreak === undefined) h.successStreak = 0;
+                    });
+                }
             });
 
             localData = data;
@@ -132,12 +159,6 @@
                 document.getElementById("groups-container").innerHTML = 
                     `*קבוצה 1:* ${localData.groupsData.g1.join(", ")}<br>
                      *קבוצה 2:* ${localData.groupsData.g2.join(", ")}`;
-                
-                if (localData.groupsData.time) {
-                    const timeDiv = document.getElementById("draw-time");
-                    timeDiv.style.display = "block";
-                    timeDiv.innerText = `הגרלה אחרונה: ${localData.groupsData.time}`;
-                }
             }
         }
 
@@ -145,28 +166,34 @@
             const container = document.getElementById("players-container");
             const yestStr = getYesterdayString();
 
+            let sortedPlayers = [...playersList].sort((a,b) => (localData.players[b].score || 0) - (localData.players[a].score || 0));
+
             container.innerHTML = `
-                <h2>מעקב יומי וקנסות</h2>
+                <h2>ליגת ההרגלים וקנסות</h2>
                 <button class="btn btn-reset-day" onclick="resetYesterdayStatus()">🌅 נקה דיווחי אתמול (בוקר חדש)</button>
             `;
 
-            playersList.forEach(player => {
+            sortedPlayers.forEach(player => {
                 const pData = localData.players[player];
                 const activePens = pData.penalties || 0; 
                 const paidPens = pData.paidPenalties || 0;
                 const debt = activePens * 10; 
                 const paidMoney = paidPens * 10;
+                const isPaused = pData.isPaused;
                 
                 let habitsHTML = "";
                 if(pData.habits && pData.habits.length > 0) {
                     pData.habits.forEach((habit, index) => {
                         let currentMiss = habit.missedDays || 0;
+                        let successStrk = habit.successStreak || 0;
                         let isDanger = currentMiss === 1 ? "danger" : "";
+                        let crown = successStrk >= 7 ? `<span class="crown-icon" title="${successStrk} ימים ברצף">👑</span>` : "";
+                        
                         habitsHTML += `
                             <div class="habit-row">
                                 <div class="habit-name">
                                     <span onclick="removeHabit('${player}', ${index})" title="מחק הרגל">🗑️</span>
-                                    ${habit.name}
+                                    ${habit.name} ${crown}
                                 </div>
                                 <div class="missed-tracker">
                                     רצף:
@@ -182,9 +209,15 @@
                 }
 
                 container.innerHTML += `
-                    <div class="player-card">
+                    <div class="player-card ${isPaused ? 'paused' : ''}">
                         <div class="player-header">
-                            <h3>${player}</h3>
+                            <div class="player-title">
+                                <h3>${player}</h3>
+                                ${isPaused ? `<span class="pause-text">(בהפסקה מ-${pData.pauseStartDate})</span>` : ''}
+                                <button class="btn-pause" onclick="togglePause('${player}')">${isPaused ? '▶️ חזור מפעילות' : '⏸️ יציאה לחופשה/הפסקה'}</button>
+                                <div class="score-badge" style="margin-top:5px;">🏆 ניקוד: ${pData.score} XP</div>
+                                ${pData.reportStreak > 0 ? `<div class="streak-badge">🔥 ${pData.reportStreak} ימי דיווח</div>` : ''}
+                            </div>
                             <div class="penalty-container">
                                 <div class="penalty-box">
                                     פתוח לתשלום: <span>${activePens}</span><br>(חייב עכשיו ${debt}₪)
@@ -195,7 +228,7 @@
                                 </div>
                                 ${activePens > 0 ? `<button class="btn-pay" onclick="payDebts('${player}')">💸 איפוס חוב (שולם)</button>` : ''}
                                 <div class="paid-box">
-                                    שולם עד כה: ${paidMoney}₪ (${paidPens} קנסות)
+                                    שולם: ${paidMoney}₪
                                     <button class="btn-reset-paid" onclick="resetPaidPenalties('${player}')">(אפס)</button>
                                 </div>
                             </div>
@@ -217,10 +250,26 @@
                 `;
             });
         }
+        
+        // פונקציית הקפאה
+        function togglePause(player) {
+            let isPaused = localData.players[player].isPaused;
+            if (!isPaused) {
+                if (confirm(`להעביר את ${player} למצב הפסקה/חופשה?\nהסטריקים שלו יוקפאו והוא לא יקבל קנסות על אי-דיווח.`)) {
+                    let dateStr = getTodayString();
+                    db.ref(`accountability_v2/players/${player}/isPaused`).set(true);
+                    db.ref(`accountability_v2/players/${player}/pauseStartDate`).set(dateStr);
+                }
+            } else {
+                if (confirm(`להחזיר את ${player} לפעילות רגילה?`)) {
+                    db.ref(`accountability_v2/players/${player}/isPaused`).set(false);
+                    db.ref(`accountability_v2/players/${player}/pauseStartDate`).set("");
+                }
+            }
+        }
 
-        // איפוס היסטוריית תשלומים
         function resetPaidPenalties(player) {
-            if(confirm(`להאפס את ההיסטוריה של "שולם עד כה" עבור ${player}? (טוב לשלבי ניסיון)`)) {
+            if(confirm(`להאפס את ההיסטוריה של "שולם עד כה" עבור ${player}?`)) {
                 db.ref(`accountability_v2/players/${player}/paidPenalties`).set(0);
             }
         }
@@ -236,15 +285,49 @@
         }
 
         function setYesterdayStatus(player, status) {
+            let pData = localData.players[player];
+            
+            // הגנה אם השחקן בהפסקה
+            if (pData.isPaused) {
+                alert(`⚠️ ${player} נמצא בהפסקה/חופשה. לא ניתן לעדכן לו סטטוס דיווח או קנסות כרגע.`);
+                return;
+            }
+
             const yestStr = getYesterdayString();
             
-            if (status === 'no' && localData.players[player].yesterdayStatus !== 'no') {
-                if (localData.players[player].lastReportPenaltyDate === yestStr) {
-                    alert(`⚠️ לא הוסף קנס. כבר נתת ל-${player} קנס על אי-דיווח לתאריך ${yestStr}.`);
-                } else {
-                    if(confirm(`להוסיף ל-${player} קנס אוטומטי על אי-דיווח אתמול (${yestStr})?`)) {
-                        updatePenalty(player, 1);
-                        db.ref(`accountability_v2/players/${player}/lastReportPenaltyDate`).set(yestStr);
+            if (status === 'yes') {
+                if (pData.lastScoredDate !== yestStr) {
+                    let newScore = (pData.score || 0) + 10;
+                    let newStreak = (pData.reportStreak || 0) + 1;
+                    db.ref(`accountability_v2/players/${player}/reportStreak`).set(newStreak);
+                    
+                    if (pData.habits) {
+                        pData.habits.forEach((h, i) => {
+                            let misses = h.missedDays || 0;
+                            let successStrk = h.successStreak || 0;
+                            if (misses === 0) {
+                                successStrk++;
+                                if (successStrk === 7) newScore += 50; 
+                            } else {
+                                successStrk = 0; 
+                            }
+                            db.ref(`accountability_v2/players/${player}/habits/${i}/successStreak`).set(successStrk);
+                        });
+                    }
+                    db.ref(`accountability_v2/players/${player}/score`).set(newScore);
+                    db.ref(`accountability_v2/players/${player}/lastScoredDate`).set(yestStr);
+                }
+            } else if (status === 'no') {
+                db.ref(`accountability_v2/players/${player}/reportStreak`).set(0);
+                
+                if (pData.yesterdayStatus !== 'no') {
+                    if (pData.lastReportPenaltyDate === yestStr) {
+                        alert(`⚠️ לא הוסף קנס. כבר נתת קנס על תאריך זה.`);
+                    } else {
+                        if(confirm(`להוסיף ל-${player} קנס אוטומטי על אי-דיווח אתמול (${yestStr})? זה יוריד 20 XP.`)) {
+                            updatePenalty(player, 1);
+                            db.ref(`accountability_v2/players/${player}/lastReportPenaltyDate`).set(yestStr);
+                        }
                     }
                 }
             }
@@ -263,7 +346,7 @@
             let habitName = prompt(`הכנס שם הרגל חדש עבור ${player}:`);
             if (habitName && habitName.trim() !== "") {
                 let habits = localData.players[player].habits || [];
-                habits.push({ name: habitName.trim(), missedDays: 0 });
+                habits.push({ name: habitName.trim(), missedDays: 0, successStreak: 0 });
                 db.ref(`accountability_v2/players/${player}/habits`).set(habits);
             }
         }
@@ -277,15 +360,24 @@
         }
 
         function updateHabitMiss(player, index, change) {
-            let habit = localData.players[player].habits[index];
+            let pData = localData.players[player];
+            if (pData.isPaused) {
+                alert(`⚠️ ${player} נמצא בהפסקה. לא מומלץ לשנות את הסטריקים שלו כעת.`);
+            }
+
+            let habit = pData.habits[index];
             let newMissedCount = (habit.missedDays || 0) + change;
 
             if (newMissedCount < 0) newMissedCount = 0;
 
             if (newMissedCount >= 2) {
                 alert(`⛔ פסילה! ${player} לא ביצע את ההרגל '${habit.name}' במשך יומיים ברצף.\nאל תשכח להוסיף לו קנס פה בטבלה.`);
-                let currentPenalties = localData.players[player].penalties || 0;
+                let currentPenalties = pData.penalties || 0;
                 db.ref(`accountability_v2/players/${player}/penalties`).set(currentPenalties + 1);
+                
+                let newScore = (pData.score || 0) - 20;
+                db.ref(`accountability_v2/players/${player}/score`).set(newScore);
+                
                 newMissedCount = 0; 
             }
 
@@ -297,6 +389,11 @@
             let newPenalties = currentPenalties + change;
             if (newPenalties < 0) newPenalties = 0;
             db.ref(`accountability_v2/players/${player}/penalties`).set(newPenalties);
+            
+            if (change > 0) {
+                let newScore = (localData.players[player].score || 0) - 20;
+                db.ref(`accountability_v2/players/${player}/score`).set(newScore);
+            }
         }
 
         function generateGroups() {
@@ -314,10 +411,10 @@
         }
 
         function sendToWhatsApp() {
-            let text = `*עדכון מחויבות יומי!* 🎯\n\n`;
+            let text = `*🏆 עדכון ליגת ההרגלים!* 🎯\n\n`;
             
             if (localData.groupsData && localData.groupsData.g1) {
-                text += `*קבוצות:* קבוצה 1: ${localData.groupsData.g1.join(", ")} | קבוצה 2: ${localData.groupsData.g2.join(", ")}\n\n`;
+                text += `*קבוצות תשלום:* קבוצה 1: ${localData.groupsData.g1.join(", ")} | קבוצה 2: ${localData.groupsData.g2.join(", ")}\n\n`;
             }
 
             text += `*💸 חובות פתוחים לתשלום:* \n`;
@@ -343,32 +440,40 @@
                 }
             });
 
-            if (!hasActiveDebts) {
-                text += `כולם נקיים מחובות כרגע! תותחים. 💪\n`;
-            }
+            if (!hasActiveDebts) text += `כולם נקיים מחובות כרגע! תותחים. 💪\n`;
             text += `➖➖➖➖➖➖➖➖\n\n`;
 
             const yestStr = getYesterdayString();
-            text += `*📝 פירוט אתמול (${yestStr}):*\n\n`;
+            text += `*🏅 טבלת הליגה ופירוט אתמול (${yestStr}):*\n\n`;
             
-            playersList.forEach(p => {
+            let sortedPlayers = [...playersList].sort((a,b) => (localData.players[b].score || 0) - (localData.players[a].score || 0));
+
+            sortedPlayers.forEach((p, index) => {
                 let pData = localData.players[p];
+                let rank = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👤";
+                let repStreak = pData.reportStreak > 0 ? `🔥${pData.reportStreak}` : "";
                 
                 let reportedIcon = "";
-                if (pData.yesterdayStatus === 'yes') reportedIcon = "✅ הוגש";
-                else if (pData.yesterdayStatus === 'no') reportedIcon = "❌ לא הוגש";
-                else reportedIcon = "⏳ טרם נבדק";
+                if (pData.isPaused) {
+                    reportedIcon = "⏸️ חופשה/הקפאה";
+                } else {
+                    if (pData.yesterdayStatus === 'yes') reportedIcon = "✅ תקין";
+                    else if (pData.yesterdayStatus === 'no') reportedIcon = "❌ לא דיווח";
+                    else reportedIcon = "⏳ טרם נבדק";
+                }
                 
-                text += `👤 *${p}:* (דיווח אתמול: ${reportedIcon})\n`;
+                text += `${rank} *${p}* | ${pData.score} XP ${repStreak} | דיווח: ${reportedIcon}\n`;
 
                 if (pData.habits && pData.habits.length > 0) {
                     pData.habits.forEach(h => {
                         let misses = h.missedDays || 0;
+                        let successStrk = h.successStreak || 0;
                         let hIcon = misses === 0 ? "✅" : "⚠️";
-                        text += `  ${hIcon} ${h.name} (${misses}/2 פסילות ברצף)\n`;
+                        let crown = successStrk >= 7 ? " 👑" : "";
+                        text += `  ${hIcon} ${h.name} (${misses}/2 פסילות)${crown}\n`;
                     });
                 } else {
-                    text += `  אין הרגלים מוגדרים.\n`;
+                    text += `  אין הרגלים.\n`;
                 }
                 text += `\n`; 
             });
