@@ -1,9 +1,18 @@
+הגיוני לגמרי. כדי לא לסבך את האפליקציה עם מערכת תאריכים מורכבת שדורשת תחזוקה, הפתרון הכי פרקטי הוא להוסיף צ'קבוקס (תיבת סימון) קטנה ליד כל שם שנקראת "✅ עדכן היום".
+
+הוספתי גם כפתור כללי של "התחל יום חדש" שמאפס בלחיצה אחת את כל הסימונים של הדיווח היומי כדי שתוכלו להתחיל מחדש בבוקר.
+
+בנוסף, הטקסט לווטסאפ שונה ל"עדכון מחויבות יומי", והוא מפרט בדיוק את המצב של כל הרגל (למשל: `1/2`), האם אותו אדם דיווח באותו יום, ואת מצב הקנסות שלו באותה שורה.
+
+הנה הקוד המעודכן, מוכן להעתקה והדבקה (זכור להמתין דקה-שתיים ב-GitHub לעיגול הירוק):
+
+```html
 <!DOCTYPE html>
 <html dir="rtl" lang="he">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ניהול מחויבות - הרגלים אישיים</title>
+    <title>ניהול מחויבות - יומי</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -15,6 +24,7 @@
         .btn { padding: 10px 15px; font-size: 15px; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); width: 95%; max-width: 350px; margin: 5px auto; display: block; }
         .btn-generate { background-color: #007bff; margin-top: 15px; }
         .btn-whatsapp { background-color: #25D366; margin-top: 15px; padding: 15px; font-size: 18px; }
+        .btn-reset-day { background-color: #ff9800; margin-bottom: 15px; }
         
         .section { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); margin: 15px auto; max-width: 400px; text-align: right; }
         .section h2 { text-align: center; font-size: 18px; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
@@ -22,8 +32,11 @@
         /* כרטיסיית שחקן */
         .player-card { border: 1px solid #ddd; border-radius: 10px; margin-bottom: 15px; padding: 10px; background: #fafafa; }
         .player-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #007bff; padding-bottom: 8px; margin-bottom: 10px; }
-        .player-header h3 { margin: 0; font-size: 20px; color: #007bff; }
+        .player-header h3 { margin: 0; font-size: 20px; color: #007bff; display: flex; flex-direction: column; gap: 5px; }
         
+        .daily-update-label { font-size: 14px; color: #555; display: flex; align-items: center; gap: 5px; cursor: pointer; background: #e3f2fd; padding: 4px 8px; border-radius: 5px; border: 1px solid #90caf9;}
+        .daily-update-label input { transform: scale(1.2); cursor: pointer; }
+
         .penalty-box { background: #ffebee; padding: 5px 10px; border-radius: 6px; text-align: center; font-size: 14px;}
         .penalty-box span { font-weight: bold; color: #c62828; font-size: 18px; }
         .penalty-controls { display: flex; gap: 5px; justify-content: center; align-items: center; margin-top: 3px; }
@@ -48,7 +61,7 @@
 </head>
 <body>
 
-    <h1>ניהול הרגלים וקנסות 🎯</h1>
+    <h1>ניהול מחויבות 🎯</h1>
     <div id="loading">מתחבר לשרת הנתונים...</div>
 
     <div id="app-content" style="display: none;">
@@ -92,8 +105,9 @@
             if (!data.players) data.players = {};
             
             playersList.forEach(p => { 
-                if (!data.players[p]) data.players[p] = { penalties: 0, habits: [] };
+                if (!data.players[p]) data.players[p] = { penalties: 0, habits: [], updatedToday: false };
                 if (!data.players[p].habits) data.players[p].habits = [];
+                if (data.players[p].updatedToday === undefined) data.players[p].updatedToday = false;
             });
 
             localData = data;
@@ -121,12 +135,15 @@
 
         function renderPlayers() {
             const container = document.getElementById("players-container");
-            container.innerHTML = "<h2>מעקב הרגלים וקנסות</h2>";
+            container.innerHTML = `
+                <h2>מעקב יומי וקנסות</h2>
+                <button class="btn btn-reset-day" onclick="resetDailyUpdates()">🌅 התחל יום חדש (איפוס דיווחים)</button>
+            `;
 
             playersList.forEach(player => {
                 const pData = localData.players[player];
-                // חישוב חוב: על כל פסילה, 5 שקלים כפול 2 חברים בקבוצה = 10 שקלים לפסילה
                 const debt = pData.penalties * 10; 
+                const isUpdatedChecked = pData.updatedToday ? "checked" : "";
                 
                 let habitsHTML = "";
                 if(pData.habits && pData.habits.length > 0) {
@@ -140,7 +157,7 @@
                                     ${habit.name}
                                 </div>
                                 <div class="missed-tracker">
-                                    רצף פספוסים:
+                                    רצף:
                                     <button onclick="updateHabitMiss('${player}', ${index}, -1)">-</button>
                                     <span class="missed-count ${isDanger}">${currentMiss}/2</span>
                                     <button onclick="updateHabitMiss('${player}', ${index}, 1)">+</button>
@@ -155,7 +172,13 @@
                 container.innerHTML += `
                     <div class="player-card">
                         <div class="player-header">
-                            <h3>${player}</h3>
+                            <h3>
+                                ${player}
+                                <label class="daily-update-label">
+                                    <input type="checkbox" ${isUpdatedChecked} onchange="toggleDailyUpdate('${player}', this.checked)">
+                                    עדכן היום בקבוצה
+                                </label>
+                            </h3>
                             <div class="penalty-box">
                                 קנסות: <span>${pData.penalties}</span><br>(חייב ${debt}₪)
                                 <div class="penalty-controls">
@@ -167,10 +190,22 @@
                         <div class="habits-list">
                             ${habitsHTML}
                         </div>
-                        <button class="add-habit-btn" onclick="addHabit('${player}')">+ הוסף הרגל חדש</button>
+                        <button class="add-habit-btn" onclick="addHabit('${player}')">+ הוסף הרגל</button>
                     </div>
                 `;
             });
+        }
+
+        function toggleDailyUpdate(player, isChecked) {
+            db.ref(`accountability_v2/players/${player}/updatedToday`).set(isChecked);
+        }
+
+        function resetDailyUpdates() {
+            if(confirm("בטוח שברצונך לאפס את הדיווחים של כולם? (מומלץ לעשות את זה כל בוקר)")) {
+                playersList.forEach(p => {
+                    db.ref(`accountability_v2/players/${p}/updatedToday`).set(false);
+                });
+            }
         }
 
         function addHabit(player) {
@@ -197,11 +232,9 @@
             if (newMissedCount < 0) newMissedCount = 0;
 
             if (newMissedCount >= 2) {
-                alert(`⛔ פסילה! ${player} לא ביצע את ההרגל '${habit.name}' במשך יומיים ברצף.\nנוסף קנס (5 ש"ח לכל אחד משני חברי הקבוצה = סה"כ 10 ש"ח חוב).`);
-                
+                alert(`⛔ פסילה! ${player} לא ביצע את ההרגל '${habit.name}' במשך יומיים ברצף.\nאל תשכח להוסיף לו קנס פה בטבלה.`);
                 let currentPenalties = localData.players[player].penalties || 0;
                 db.ref(`accountability_v2/players/${player}/penalties`).set(currentPenalties + 1);
-                
                 newMissedCount = 0; 
             }
 
@@ -230,29 +263,40 @@
         }
 
         function sendToWhatsApp() {
-            let text = `*עדכון מחויבות שבועי!* 🎯\n\n`;
+            let text = `*עדכון מחויבות יומי!* 🎯\n\n`;
             
             if (localData.groupsData && localData.groupsData.g1) {
-                text += `*חלוקה לקבוצות (3 בכל קבוצה):*\nקבוצה 1: ${localData.groupsData.g1.join(", ")}\nקבוצה 2: ${localData.groupsData.g2.join(", ")}\n\n`;
+                text += `*קבוצות:* קבוצה 1: ${localData.groupsData.g1.join(", ")} | קבוצה 2: ${localData.groupsData.g2.join(", ")}\n\n`;
             }
 
-            text += `*מצב קנסות:* 💸\n`;
-            let totalDebt = 0;
+            text += `*סיכום יומי:* 📝\n`;
             
+            let totalDebt = 0;
             playersList.forEach(p => {
-                let pens = localData.players[p].penalties || 0;
-                let debt = pens * 10; // 5 שקלים כפול 2 אנשים
-                totalDebt += debt;
+                let pData = localData.players[p];
                 
-                let icon = pens === 0 ? "✅" : "❌";
-                if (pens > 0) {
-                    text += `${icon} ${p}: חייב ${debt} ש"ח (${pens} פסילות)\n`;
-                } else {
-                    text += `${icon} ${p}: נקי מפסילות!\n`;
+                // יצירת מחרוזת הרגלים
+                let habitsArr = [];
+                if (pData.habits && pData.habits.length > 0) {
+                    pData.habits.forEach(h => {
+                        habitsArr.push(`${h.name} ${h.missedDays || 0}/2`);
+                    });
                 }
+                let habitsStr = habitsArr.length > 0 ? habitsArr.join(", ") : "אין הרגלים";
+                
+                // סטטוס דיווח יומי
+                let reportedIcon = pData.updatedToday ? "✅ עדכן יומי" : "❌ לא עדכן יומי";
+                
+                // קנסות
+                let pens = pData.penalties || 0;
+                let debt = pens * 10;
+                totalDebt += debt;
+                let penaltyStr = pens > 0 ? `חוב: ${debt}₪` : "אין קנס";
+
+                text += `*${p}:* ${habitsStr} | ${reportedIcon} | ${penaltyStr}\n`;
             });
 
-            text += `\n💰 *סך הכל חובות בקופה:* ${totalDebt} ש"ח`;
+            text += `\n💰 *סה"כ חובות בקופה:* ${totalDebt} ש"ח`;
 
             let encodedText = encodeURIComponent(text);
             window.location.href = `whatsapp://send?text=${encodedText}`;
@@ -260,3 +304,5 @@
     </script>
 </body>
 </html>
+
+```
