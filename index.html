@@ -258,20 +258,23 @@
                         let isDanger = currentMiss === 1 ? "danger" : "";
                         let crown = successStrk >= 7 ? `<span class="crown-icon" title="${successStrk} ימים ברצף">👑</span>` : "";
                         
-                        habitsHTML += `
-                            <div class="habit-row">
-                                <div class="habit-name">
-                                    <span onclick="removeHabit('${player}', ${index})" title="מחק הרגל">🗑️</span>
-                                    ${habit.name} ${crown}
-                                </div>
-                                <div class="missed-tracker">
-                                    רצף איקסים:
-                                    <button onclick="updateHabitMiss('${player}', ${index}, -1)">-</button>
-                                    <span class="missed-count ${isDanger}">${currentMiss}/2</span>
-                                    <button onclick="updateHabitMiss('${player}', ${index}, 1)">+</button>
-                                </div>
-                            </div>
-                        `;
+habitsHTML += `
+    <div class="habit-row">
+        <div class="habit-name">
+            <span onclick="removeHabit('${player}', ${index})" title="מחק הרגל">🗑️</span>
+            ${habit.name} ${crown}
+        </div>
+        <div style="display: flex; gap: 5px; align-items: center;">
+            <button onclick="markHabitDone('${player}', ${index})" style="background:#d4edda; border:1px solid #c3e6cb; padding:5px 10px; border-radius:5px; cursor:pointer;">✅</button>
+            <div class="missed-tracker">
+                רצף:
+                <button onclick="updateHabitMiss('${player}', ${index}, -1)">-</button>
+                <span class="missed-count ${isDanger}">${currentMiss}/2</span>
+                <button onclick="updateHabitMiss('${player}', ${index}, 1)">+</button>
+            </div>
+        </div>
+    </div>
+`;
                     });
                 } else {
                     habitsHTML = `<div style="text-align:center; font-size:13px; color:#777; margin-bottom:10px;">אין הרגלים. לחץ להוספה.</div>`;
@@ -357,6 +360,29 @@
                 }
             }
         }
+
+        function markHabitDone(player, index) {
+    let pData = localData.players[player];
+    let habit = pData.habits[index];
+    
+    // בודק אם כבר בוצע היום (אופציונלי, אפשר להוריד אם אתה רוצה שיהיה אפשר ללחוץ כמה פעמים)
+    // אם לא, פשוט נעדכן את הסטריק
+    let currentStreak = (habit.successStreak || 0) + 1;
+    
+    // מאפס פסילות אם היו (כי הנה, היום ביצענו!)
+    db.ref(`accountability_v2/players/${player}/habits/${index}/missedDays`).set(0);
+    db.ref(`accountability_v2/players/${player}/habits/${index}/successStreak`).set(currentStreak);
+
+    // בונוס מלך ההרגל (ברגע שמגיעים ל-7)
+    if (currentStreak === 7) {
+        let numHabits = pData.habits.length || 1;
+        let crownBonus = Math.round(30 / numHabits);
+        db.ref(`accountability_v2/players/${player}/score`).set((pData.score || 0) + crownBonus);
+        alert(`👑 מזל טוב! ${player} הגיע ל-7 ימי רצף ב-${habit.name}!`);
+    } else {
+        alert(`${player} ביצע את ${habit.name}! (רצף: ${currentStreak})`);
+    }
+}
 
         function resetPaidPenalties(player) {
             if(confirm(`להאפס את ההיסטוריה של "שולם עד כה" עבור ${player}?`)) {
