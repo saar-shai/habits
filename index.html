@@ -1,9 +1,20 @@
+הגעת בדיוק לנקודה שבה אפליקציה מפסיקה להיות סתם "טבלת מעקב" והופכת לכלי שמנהל כסף אמיתי ביומיום. ההפרדה בין חובות פעילים למצטברים היא קריטית כדי למנוע בלאגן בקבוצה.
+
+הוספתי פתרונות פרקטיים בדיוק לבעיות שהעלית:
+
+1. **ניהול חובות פתוחים מול חובות ששולמו:** יש עכשיו שני מספרים – "קנסות לתשלום עכשיו" ו-"קנסות ששולמו בעבר". הוספתי כפתור ירוק **[💸 סמן כשולם]**. כשאפיק למשל משלם את ה-10 שקלים שלו, אתה לוחץ על הכפתור. זה מאפס את החוב הפעיל שלו ל-0, ומעביר את זה למונה ההיסטורי של קנסות ששולמו. הווטסאפ מדווח **רק** על החובות הפעילים.
+2. **הגנת תאריך בדיווח אתמול:** ליד המילים "דיווח אתמול" מופיע כעת התאריך האמיתי של אתמול (למשל: 17.06). המערכת זוכרת מתי כל אחד קיבל קנס על אי-דיווח. אם בטעות תלחץ פעמיים על ה-❌ של אורן באותו יום, תקפוץ הודעה: *"כבר ניתן קנס על תאריך זה!"* וזה לא יוסיף לו סתם עוד חוב.
+3. **ניקוי הודעת הווטסאפ:** העפתי את שורת ה"סה"כ בקופה", והחובות מנוסחים עכשיו במדויק ורק על סמך מה שלא שולם.
+
+הנה הקוד המעודכן. תעתיק, תדביק ב-GitHub (כקובץ `index.html`), תמתין ל-V הירוק, ותרענן עם `Ctrl` + `F5`:
+
+```html
 <!DOCTYPE html>
 <html dir="rtl" lang="he">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ניהול מחויבות - דיווחים וחובות</title>
+    <title>ניהול מחויבות - חובות ודיווחים</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -20,23 +31,25 @@
         .section { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); margin: 15px auto; max-width: 400px; text-align: right; }
         .section h2 { text-align: center; font-size: 18px; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
         
-        /* כרטיסיית שחקן */
         .player-card { border: 1px solid #ddd; border-radius: 10px; margin-bottom: 15px; padding: 10px; background: #fafafa; }
-        .player-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #007bff; padding-bottom: 8px; margin-bottom: 10px; }
+        .player-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #007bff; padding-bottom: 8px; margin-bottom: 10px; }
         .player-header h3 { margin: 0; font-size: 20px; color: #007bff; }
         
-        /* אזור דיווח אתמול */
+        /* עיצוב חובות מתקדם */
+        .penalty-container { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
+        .penalty-box { background: #ffebee; padding: 5px 10px; border-radius: 6px; text-align: center; font-size: 14px; border: 1px solid #ffcdd2;}
+        .penalty-box span { font-weight: bold; color: #c62828; font-size: 18px; }
+        .penalty-controls { display: flex; gap: 5px; justify-content: center; align-items: center; margin-top: 3px; }
+        .btn-p { background: #ffcdd2; border: none; border-radius: 4px; width: 25px; height: 25px; font-weight: bold; cursor: pointer; color: #c62828; }
+        
+        .paid-box { font-size: 12px; color: #388e3c; font-weight: bold; }
+        .btn-pay { background: #28a745; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; font-weight: bold; }
+
         .yesterday-tracker { background: #e3f2fd; padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
         .btn-status { padding: 5px 10px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; font-weight: bold; font-size: 13px; }
         .btn-status.active-yes { background: #d4edda; border-color: #28a745; color: #155724; }
         .btn-status.active-no { background: #f8d7da; border-color: #dc3545; color: #721c24; }
 
-        .penalty-box { background: #ffebee; padding: 5px 10px; border-radius: 6px; text-align: center; font-size: 14px;}
-        .penalty-box span { font-weight: bold; color: #c62828; font-size: 18px; }
-        .penalty-controls { display: flex; gap: 5px; justify-content: center; align-items: center; margin-top: 3px; }
-        .btn-p { background: #ffcdd2; border: none; border-radius: 4px; width: 25px; height: 25px; font-weight: bold; cursor: pointer; color: #c62828; }
-        
-        /* אזור הרגלים */
         .habit-row { display: flex; justify-content: space-between; align-items: center; background: white; padding: 8px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 8px; }
         .habit-name { font-weight: bold; font-size: 14px; max-width: 120px; word-wrap: break-word; }
         .habit-name span { cursor: pointer; color: #dc3545; font-size: 12px; margin-right: 5px; }
@@ -91,6 +104,13 @@
         const playersList = ["סהר", "אורן", "אפיק", "אלמוג", "גואטה", "שבי"];
         let localData = { players: {}, groupsData: {} };
 
+        // חישוב תאריך של אתמול למניעת קנסות כפולים
+        function getYesterdayString() {
+            let d = new Date();
+            d.setDate(d.getDate() - 1);
+            return d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
+        }
+
         db.ref('accountability_v2').on('value', (snapshot) => {
             document.getElementById("loading").style.display = "none";
             document.getElementById("app-content").style.display = "block";
@@ -99,11 +119,12 @@
             if (!data.players) data.players = {};
             
             playersList.forEach(p => { 
-                if (!data.players[p]) data.players[p] = { penalties: 0, habits: [], yesterdayStatus: 'pending' };
+                if (!data.players[p]) data.players[p] = {};
                 if (!data.players[p].habits) data.players[p].habits = [];
                 if (!data.players[p].yesterdayStatus) data.players[p].yesterdayStatus = 'pending';
-                // הגנת undefined במקרה של שחקן חדש במסד נתונים
-                if (data.players[p].penalties === undefined) data.players[p].penalties = 0;
+                if (data.players[p].penalties === undefined) data.players[p].penalties = 0; // חוב פעיל
+                if (data.players[p].paidPenalties === undefined) data.players[p].paidPenalties = 0; // קנסות ששולמו
+                if (data.players[p].lastReportPenaltyDate === undefined) data.players[p].lastReportPenaltyDate = "";
             });
 
             localData = data;
@@ -131,6 +152,8 @@
 
         function renderPlayers() {
             const container = document.getElementById("players-container");
+            const yestStr = getYesterdayString();
+
             container.innerHTML = `
                 <h2>מעקב יומי וקנסות</h2>
                 <button class="btn btn-reset-day" onclick="resetYesterdayStatus()">🌅 נקה דיווחי אתמול (בוקר חדש)</button>
@@ -138,8 +161,9 @@
 
             playersList.forEach(player => {
                 const pData = localData.players[player];
-                const pens = pData.penalties || 0; // מונע NaN
-                const debt = pens * 10; 
+                const activePens = pData.penalties || 0; 
+                const paidPens = pData.paidPenalties || 0;
+                const debt = activePens * 10; 
                 
                 let habitsHTML = "";
                 if(pData.habits && pData.habits.length > 0) {
@@ -169,17 +193,21 @@
                     <div class="player-card">
                         <div class="player-header">
                             <h3>${player}</h3>
-                            <div class="penalty-box">
-                                קנסות: <span>${pens}</span><br>(סה"כ ${debt}₪)
-                                <div class="penalty-controls">
-                                    <button class="btn-p" onclick="updatePenalty('${player}', -1)">-</button>
-                                    <button class="btn-p" onclick="updatePenalty('${player}', 1)">+</button>
+                            <div class="penalty-container">
+                                <div class="penalty-box">
+                                    פתוח לתשלום: <span>${activePens}</span><br>(חייב עכשיו ${debt}₪)
+                                    <div class="penalty-controls">
+                                        <button class="btn-p" onclick="updatePenalty('${player}', -1)">-</button>
+                                        <button class="btn-p" onclick="updatePenalty('${player}', 1)">+</button>
+                                    </div>
                                 </div>
+                                ${activePens > 0 ? `<button class="btn-pay" onclick="payDebts('${player}')">💸 איפוס חוב (שולם)</button>` : ''}
+                                <div class="paid-box">קנסות ששולמו בעבר: ${paidPens}</div>
                             </div>
                         </div>
                         
                         <div class="yesterday-tracker">
-                            <span>דיווח אתמול:</span>
+                            <span>דיווח אתמול (${yestStr}):</span>
                             <div>
                                 <button class="btn-status ${pData.yesterdayStatus === 'yes' ? 'active-yes' : ''}" onclick="setYesterdayStatus('${player}', 'yes')">✅ תקין</button>
                                 <button class="btn-status ${pData.yesterdayStatus === 'no' ? 'active-no' : ''}" onclick="setYesterdayStatus('${player}', 'no')">❌ לא דיווח</button>
@@ -195,10 +223,28 @@
             });
         }
 
+        // פונקציה חדשה לתשלום חוב
+        function payDebts(player) {
+            let active = localData.players[player].penalties || 0;
+            let currentPaid = localData.players[player].paidPenalties || 0;
+            
+            if (confirm(`האם ${player} שילם את חובו הפעיל (${active * 10} ש"ח)? החוב יתאפס.`)) {
+                db.ref(`accountability_v2/players/${player}/paidPenalties`).set(currentPaid + active);
+                db.ref(`accountability_v2/players/${player}/penalties`).set(0);
+            }
+        }
+
         function setYesterdayStatus(player, status) {
+            const yestStr = getYesterdayString();
+            
             if (status === 'no' && localData.players[player].yesterdayStatus !== 'no') {
-                if(confirm(`להוסיף ל-${player} קנס אוטומטי על אי-דיווח?`)) {
-                    updatePenalty(player, 1);
+                if (localData.players[player].lastReportPenaltyDate === yestStr) {
+                    alert(`⚠️ לא הוסף קנס. כבר נתת ל-${player} קנס על אי-דיווח לתאריך ${yestStr}.`);
+                } else {
+                    if(confirm(`להוסיף ל-${player} קנס אוטומטי על אי-דיווח אתמול (${yestStr})?`)) {
+                        updatePenalty(player, 1);
+                        db.ref(`accountability_v2/players/${player}/lastReportPenaltyDate`).set(yestStr);
+                    }
                 }
             }
             db.ref(`accountability_v2/players/${player}/yesterdayStatus`).set(status);
@@ -273,46 +319,42 @@
                 text += `*קבוצות:* קבוצה 1: ${localData.groupsData.g1.join(", ")} | קבוצה 2: ${localData.groupsData.g2.join(", ")}\n\n`;
             }
 
-            // ---------- חלק 1: מי חייב למי (ממוקם למעלה) ----------
-            text += `*💸 חובות וקנסות:* \n`;
-            let totalDebt = 0;
-            let hasDebts = false;
+            // ---------- חלק 1: חובות פעילים בלבד ----------
+            text += `*💸 חובות פתוחים לתשלום:* \n`;
+            let hasActiveDebts = false;
 
             playersList.forEach(p => {
                 let pData = localData.players[p];
-                let pens = pData.penalties || 0;
+                let activePens = pData.penalties || 0; // קורא רק את החובות שלא שולמו
                 
-                if (pens > 0) {
-                    hasDebts = true;
+                if (activePens > 0) {
+                    hasActiveDebts = true;
                     let myGroup = [];
                     if (localData.groupsData && localData.groupsData.g1 && localData.groupsData.g1.includes(p)) myGroup = localData.groupsData.g1;
                     else if (localData.groupsData && localData.groupsData.g2 && localData.groupsData.g2.includes(p)) myGroup = localData.groupsData.g2;
                     
                     if (myGroup.length > 0) {
                         let oweTo = myGroup.filter(m => m !== p);
-                        let amount = pens * 5;
+                        let amount = activePens * 5;
                         text += `⛔ *${p}* חייב ${amount}₪ ל${oweTo[0]} ו-${amount}₪ ל${oweTo[1]}\n`;
-                        totalDebt += (amount * 2);
                     } else {
-                        text += `⛔ *${p}* חייב ${pens * 10}₪ סך הכל\n`;
-                        totalDebt += (pens * 10);
+                        text += `⛔ *${p}* חייב ${activePens * 10}₪ סך הכל\n`;
                     }
                 }
             });
 
-            if (!hasDebts) {
-                text += `כולם נקיים מקנסות כרגע! תותחים. 💪\n`;
+            if (!hasActiveDebts) {
+                text += `כולם נקיים מחובות כרגע! תותחים. 💪\n`;
             }
-            text += `💰 סה"כ בקופה: ${totalDebt} ש"ח\n\n`;
             text += `➖➖➖➖➖➖➖➖\n\n`;
 
             // ---------- חלק 2: פירוט הרגלים לפי איש ----------
-            text += `*📝 פירוט יומי:*\n\n`;
+            const yestStr = getYesterdayString();
+            text += `*📝 פירוט אתמול (${yestStr}):*\n\n`;
             
             playersList.forEach(p => {
                 let pData = localData.players[p];
                 
-                // סטטוס דיווח אתמול
                 let reportedIcon = "";
                 if (pData.yesterdayStatus === 'yes') reportedIcon = "✅ הוגש";
                 else if (pData.yesterdayStatus === 'no') reportedIcon = "❌ לא הוגש";
@@ -320,17 +362,16 @@
                 
                 text += `👤 *${p}:* (דיווח אתמול: ${reportedIcon})\n`;
 
-                // הרגלים
                 if (pData.habits && pData.habits.length > 0) {
                     pData.habits.forEach(h => {
                         let misses = h.missedDays || 0;
-                        let hIcon = misses === 0 ? "✅" : "⚠️"; // וי אם אין פספוסים, סימן קריאה צהוב אם יש 1
+                        let hIcon = misses === 0 ? "✅" : "⚠️";
                         text += `  ${hIcon} ${h.name} (${misses}/2 פסילות ברצף)\n`;
                     });
                 } else {
                     text += `  אין הרגלים מוגדרים.\n`;
                 }
-                text += `\n`; // ירידת שורה אקסטרה בין בן אדם לבן אדם
+                text += `\n`; 
             });
 
             let encodedText = encodeURIComponent(text);
@@ -339,3 +380,5 @@
     </script>
 </body>
 </html>
+
+```
