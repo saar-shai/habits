@@ -24,7 +24,7 @@
         .player-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #007bff; padding-bottom: 8px; margin-bottom: 10px; }
         .player-header h3 { margin: 0; font-size: 20px; color: #007bff; }
         
-        .penalty-box { background: #ffebee; padding: 5px 10px; border-radius: 6px; text-align: center; }
+        .penalty-box { background: #ffebee; padding: 5px 10px; border-radius: 6px; text-align: center; font-size: 14px;}
         .penalty-box span { font-weight: bold; color: #c62828; font-size: 18px; }
         .penalty-controls { display: flex; gap: 5px; justify-content: center; align-items: center; margin-top: 3px; }
         .btn-p { background: #ffcdd2; border: none; border-radius: 4px; width: 25px; height: 25px; font-weight: bold; cursor: pointer; color: #c62828; }
@@ -36,7 +36,7 @@
         
         .missed-tracker { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #555; background: #fff3cd; padding: 4px 8px; border-radius: 5px; }
         .missed-tracker button { background: #ffecb5; border: 1px solid #ffda6a; border-radius: 4px; width: 25px; height: 25px; font-weight: bold; cursor: pointer; }
-        .missed-count { font-weight: bold; font-size: 16px; min-width: 15px; text-align: center; }
+        .missed-count { font-weight: bold; font-size: 16px; min-width: 30px; text-align: center; direction: ltr; }
         .missed-count.danger { color: red; }
 
         .add-habit-btn { background: none; border: 1px dashed #007bff; color: #007bff; width: 100%; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; }
@@ -68,7 +68,6 @@
     </div>
 
     <script>
-        // חיבור ל-Firebase שלך
         const firebaseConfig = {
             apiKey: "AIzaSyCMHkc6AtEYqigxFFZudz2V_sC6SfK2OVM",
             authDomain: "habits-201f8.firebaseapp.com",
@@ -85,7 +84,6 @@
         const playersList = ["סהר", "אורן", "אפיק", "אלמוג", "גואטה", "שבי"];
         let localData = { players: {}, groupsData: {} };
 
-        // האזנה לנתונים - שימוש בנתיב חדש (accountability_v2) בגלל שינוי המבנה
         db.ref('accountability_v2').on('value', (snapshot) => {
             document.getElementById("loading").style.display = "none";
             document.getElementById("app-content").style.display = "block";
@@ -93,7 +91,6 @@
             const data = snapshot.val() || {};
             if (!data.players) data.players = {};
             
-            // אתחול משתתפים אם הם חסרים
             playersList.forEach(p => { 
                 if (!data.players[p]) data.players[p] = { penalties: 0, habits: [] };
                 if (!data.players[p].habits) data.players[p].habits = [];
@@ -128,12 +125,14 @@
 
             playersList.forEach(player => {
                 const pData = localData.players[player];
-                const debt = pData.penalties * 5;
+                // חישוב חוב: על כל פסילה, 5 שקלים כפול 2 חברים בקבוצה = 10 שקלים לפסילה
+                const debt = pData.penalties * 10; 
                 
                 let habitsHTML = "";
                 if(pData.habits && pData.habits.length > 0) {
                     pData.habits.forEach((habit, index) => {
-                        let isDanger = habit.missedDays === 1 ? "danger" : "";
+                        let currentMiss = habit.missedDays || 0;
+                        let isDanger = currentMiss === 1 ? "danger" : "";
                         habitsHTML += `
                             <div class="habit-row">
                                 <div class="habit-name">
@@ -141,9 +140,9 @@
                                     ${habit.name}
                                 </div>
                                 <div class="missed-tracker">
-                                    רצף:
+                                    רצף פספוסים:
                                     <button onclick="updateHabitMiss('${player}', ${index}, -1)">-</button>
-                                    <span class="missed-count ${isDanger}">${habit.missedDays || 0}</span>
+                                    <span class="missed-count ${isDanger}">${currentMiss}/2</span>
                                     <button onclick="updateHabitMiss('${player}', ${index}, 1)">+</button>
                                 </div>
                             </div>
@@ -158,7 +157,7 @@
                         <div class="player-header">
                             <h3>${player}</h3>
                             <div class="penalty-box">
-                                קנסות: <span>${pData.penalties}</span> (${debt}₪)
+                                קנסות: <span>${pData.penalties}</span><br>(חייב ${debt}₪)
                                 <div class="penalty-controls">
                                     <button class="btn-p" onclick="updatePenalty('${player}', -1)">-</button>
                                     <button class="btn-p" onclick="updatePenalty('${player}', 1)">+</button>
@@ -173,8 +172,6 @@
                 `;
             });
         }
-
-        // --- פונקציות לוגיקה ועדכון השרת ---
 
         function addHabit(player) {
             let habitName = prompt(`הכנס שם הרגל חדש עבור ${player}:`);
@@ -199,15 +196,12 @@
 
             if (newMissedCount < 0) newMissedCount = 0;
 
-            // אם הגיע ל-2 יומיים ברצף -> קנס!
             if (newMissedCount >= 2) {
-                alert(`⛔ פסילה! ${player} לא ביצע את ההרגל '${habit.name}' יומיים ברצף.\nנוסף קנס של 5 ש"ח.`);
+                alert(`⛔ פסילה! ${player} לא ביצע את ההרגל '${habit.name}' במשך יומיים ברצף.\nנוסף קנס (5 ש"ח לכל אחד משני חברי הקבוצה = סה"כ 10 ש"ח חוב).`);
                 
-                // עדכון קנסות
                 let currentPenalties = localData.players[player].penalties || 0;
                 db.ref(`accountability_v2/players/${player}/penalties`).set(currentPenalties + 1);
                 
-                // איפוס הרצף של ההרגל הספציפי
                 newMissedCount = 0; 
             }
 
@@ -239,30 +233,8 @@
             let text = `*עדכון מחויבות שבועי!* 🎯\n\n`;
             
             if (localData.groupsData && localData.groupsData.g1) {
-                text += `*חלוקה לקבוצות:*\nקבוצה 1: ${localData.groupsData.g1.join(", ")}\nקבוצה 2: ${localData.groupsData.g2.join(", ")}\n\n`;
+                text += `*חלוקה לקבוצות (3 בכל קבוצה):*\nקבוצה 1: ${localData.groupsData.g1.join(", ")}\nקבוצה 2: ${localData.groupsData.g2.join(", ")}\n\n`;
             }
 
             text += `*מצב קנסות:* 💸\n`;
-            let totalDebt = 0;
-            
-            playersList.forEach(p => {
-                let pens = localData.players[p].penalties || 0;
-                let debt = pens * 5;
-                totalDebt += debt;
-                
-                let icon = pens === 0 ? "✅" : "❌";
-                if (pens > 0) {
-                    text += `${icon} ${p}: חייב ${debt} ש"ח (${pens} פסילות)\n`;
-                } else {
-                    text += `${icon} ${p}: נקי מפסילות!\n`;
-                }
-            });
-
-            text += `\n💰 *סך הכל בקופה:* ${totalDebt} ש"ח`;
-
-            let encodedText = encodeURIComponent(text);
-            window.location.href = `whatsapp://send?text=${encodedText}`;
-        }
-    </script>
-</body>
-</html>
+            let totalDebt =
