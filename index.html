@@ -116,9 +116,16 @@
             <h2 style="font-size: 16px; margin-bottom: 8px; color: #333;">📖 מדריך חוקי הליגה והניקוד</h2>
             <p style="margin: 5px 0;"><strong>➕ איך מרוויחים נקודות?</strong></p>
             <ul class="rules-list">
-                <li><strong>דיווח יומי תקין:</strong> 10+ נק'.</li>
-                <li><strong>👑 מלך ההרגל:</strong> בונוס שבועי.</li>
+                <li><strong>דיווח יומי תקין:</strong> <span style="color:#28a745; font-weight:bold;">10+ נק'</span> בכל בוקר שמסמנים עבורך שהגשת דיווח אתמול.</li>
+                <li><strong>👑 מלך ההרגל:</strong> ניתן אם ביצעת הרגל מסוים שבוע ברצף בלי אף פסילה (רצף 0/2 קבוע). על הכתר תקבל בונוס נקודות יחסי לפי כמות ההרגלים שלך מתוך סך הכל 30 נקודות שבועיות פוטנציאליות (למשל: מי שיש לו 3 הרגלים יקבל 10 נק' על הכתר, ומי שיש לו 6 הרגלים יקבל 5 נק' על הכתר) – ככה התחרות נשארת הוגנת לחלוטין!</li>
             </ul>
+            <p style="margin: 5px 0; padding-top: 5px; border-top: 1px dashed #ddd;"><strong>➖ איך מאבדים נקודות?</strong></p>
+            <ul class="rules-list">
+                <li><strong>⛔ קנס / פסילת הרגל (2/2):</strong> לא ביצעת הרגל יומיים ברצף? תספוג קנס של <span style="color:#dc3545; font-weight:bold;">15- נק'</span> (וחוב כספי של 5₪ לכל אחד משני חברי קבוצת התשלום שלך).</li>
+                <li><strong>❌ אי-דיווח יומי:</strong> לא שלחת עדכון בקבוצה עד סוף היום? תספוג <span style="color:#dc3545; font-weight:bold;">15- נק'</span>, רצף הדיווחים שלך (🔥) יתאפס, ויינתן קנס כספי אוטומטי.</li>
+            </ul>
+            <p style="margin: 5px 0; padding-top: 5px; border-top: 1px dashed #ddd;"><strong>⏸️ מצב הפסקה/חופשה:</strong></p>
+            <p style="margin: 0 0 5px 0; padding-right: 5px;">מקפיא את הניקוד, רצפי הדיווחים והכתרים שלך לחלוטין, ונועל אותם מפני ירידת נקודות או קנסות בזמן שאתה בחופש/שבת.</p>
         </div>
     </div>
 
@@ -315,8 +322,6 @@
             });
         }
         
-        // --- פונקציות ניהול ---
-
         function resetAllData() {
             let code = prompt("נא להזין קוד אימות כדי לאפס את כל הנתונים (פעולה בלתי הפיכה!):");
             if (code === "5378") {
@@ -419,6 +424,7 @@
 
         function updateHabitMiss(player, index, change) {
             let pData = localData.players[player];
+            if (pData.isPaused) { alert(`⚠️ ${player} נמצא בהפסקה.`); return; }
             let habit = pData.habits[index];
             let newMissedCount = Math.max(0, (habit.missedDays || 0) + change);
             if (newMissedCount >= 2) {
@@ -431,7 +437,11 @@
 
         function updatePenalty(player, change) {
             let currentPenalties = localData.players[player].penalties || 0;
+            let action = change > 0 ? "להוסיף חוב ידני" : "להסיר חוב ידני";
+            if (!confirm(`האם אתה בטוח שאתה רוצה ${action} ל-${player}?\nפעולה זו משנה ניקוד וחובות!`)) return;
+
             if (change < 0 && currentPenalties === 0) return;
+
             db.ref(`accountability_v2/players/${player}/penalties`).set(currentPenalties + change);
             let scoreChange = (change > 0) ? -15 : 15;
             db.ref(`accountability_v2/players/${player}/score`).set((localData.players[player].score || 0) + scoreChange);
@@ -453,7 +463,7 @@
             let sortedPlayers = [...playersList].sort((a,b) => (localData.players[b].score || 0) - (localData.players[a].score || 0));
             sortedPlayers.forEach((p, index) => {
                 let pData = localData.players[p];
-                text += `${index+1}. *${p}* | ${pData.score} נק'\n`;
+                text += `${index+1}. *${p}* | ${pData.score} נק' ${pData.reportStreak > 0 ? '🔥' : ''}\n`;
             });
             window.location.href = `whatsapp://send?text=${encodeURIComponent(text)}`;
         }
