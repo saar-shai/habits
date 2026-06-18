@@ -70,4 +70,256 @@
         <div class="section" id="players-container">
             </div>
 
-        <button class="btn btn-whatsapp" onclick="sendToWhatsApp()">שלח
+        <button class="btn btn-whatsapp" onclick="sendToWhatsApp()">שלח סיכום יומי לווטסאפ 💬</button>
+
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCMHkc6AtEYqigxFFZudz2V_sC6SfK2OVM",
+            authDomain: "habits-201f8.firebaseapp.com",
+            databaseURL: "https://habits-201f8-default-rtdb.firebaseio.com",
+            projectId: "habits-201f8",
+            storageBucket: "habits-201f8.firebasestorage.app",
+            messagingSenderId: "878310526795",
+            appId: "1:878310526795:web:a1d0b22786cd0d5003e2ce"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        const playersList = ["סהר", "אורן", "אפיק", "אלמוג", "גואטה", "שבי"];
+        let localData = { players: {}, groupsData: {} };
+
+        db.ref('accountability_v2').on('value', (snapshot) => {
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("app-content").style.display = "block";
+
+            const data = snapshot.val() || {};
+            if (!data.players) data.players = {};
+            
+            playersList.forEach(p => { 
+                if (!data.players[p]) data.players[p] = { penalties: 0, habits: [], yesterdayStatus: 'pending' };
+                if (!data.players[p].habits) data.players[p].habits = [];
+                if (!data.players[p].yesterdayStatus) data.players[p].yesterdayStatus = 'pending';
+            });
+
+            localData = data;
+            renderApp();
+        });
+
+        function renderApp() {
+            renderGroups();
+            renderPlayers();
+        }
+
+        function renderGroups() {
+            if(localData.groupsData && localData.groupsData.g1 && localData.groupsData.g2) {
+                document.getElementById("groups-container").innerHTML = 
+                    `*קבוצה 1:* ${localData.groupsData.g1.join(", ")}<br>
+                     *קבוצה 2:* ${localData.groupsData.g2.join(", ")}`;
+                
+                if (localData.groupsData.time) {
+                    const timeDiv = document.getElementById("draw-time");
+                    timeDiv.style.display = "block";
+                    timeDiv.innerText = `הגרלה אחרונה: ${localData.groupsData.time}`;
+                }
+            }
+        }
+
+        function renderPlayers() {
+            const container = document.getElementById("players-container");
+            container.innerHTML = `
+                <h2>מעקב יומי וקנסות</h2>
+                <button class="btn btn-reset-day" onclick="resetYesterdayStatus()">🌅 נקה דיווחי אתמול (בוקר חדש)</button>
+            `;
+
+            playersList.forEach(player => {
+                const pData = localData.players[player];
+                const debt = pData.penalties * 10; 
+                
+                let habitsHTML = "";
+                if(pData.habits && pData.habits.length > 0) {
+                    pData.habits.forEach((habit, index) => {
+                        let currentMiss = habit.missedDays || 0;
+                        let isDanger = currentMiss === 1 ? "danger" : "";
+                        habitsHTML += `
+                            <div class="habit-row">
+                                <div class="habit-name">
+                                    <span onclick="removeHabit('${player}', ${index})" title="מחק הרגל">🗑️</span>
+                                    ${habit.name}
+                                </div>
+                                <div class="missed-tracker">
+                                    רצף:
+                                    <button onclick="updateHabitMiss('${player}', ${index}, -1)">-</button>
+                                    <span class="missed-count ${isDanger}">${currentMiss}/2</span>
+                                    <button onclick="updateHabitMiss('${player}', ${index}, 1)">+</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    habitsHTML = `<div style="text-align:center; font-size:13px; color:#777; margin-bottom:10px;">אין הרגלים. לחץ להוספה.</div>`;
+                }
+
+                container.innerHTML += `
+                    <div class="player-card">
+                        <div class="player-header">
+                            <h3>${player}</h3>
+                            <div class="penalty-box">
+                                קנסות: <span>${pData.penalties}</span><br>(סה"כ ${debt}₪)
+                                <div class="penalty-controls">
+                                    <button class="btn-p" onclick="updatePenalty('${player}', -1)">-</button>
+                                    <button class="btn-p" onclick="updatePenalty('${player}', 1)">+</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="yesterday-tracker">
+                            <span>דיווח אתמול:</span>
+                            <div>
+                                <button class="btn-status ${pData.yesterdayStatus === 'yes' ? 'active-yes' : ''}" onclick="setYesterdayStatus('${player}', 'yes')">✅ תקין</button>
+                                <button class="btn-status ${pData.yesterdayStatus === 'no' ? 'active-no' : ''}" onclick="setYesterdayStatus('${player}', 'no')">❌ לא דיווח</button>
+                            </div>
+                        </div>
+
+                        <div class="habits-list">
+                            ${habitsHTML}
+                        </div>
+                        <button class="add-habit-btn" onclick="addHabit('${player}')">+ הוסף הרגל</button>
+                    </div>
+                `;
+            });
+        }
+
+        function setYesterdayStatus(player, status) {
+            // אם המנהל לחץ על X וזה עדיין לא היה מסומן כ-X, נציע להוסיף קנס.
+            if (status === 'no' && localData.players[player].yesterdayStatus !== 'no') {
+                if(confirm(`להוסיף ל-${player} קנס אוטומטי על אי-דיווח?`)) {
+                    updatePenalty(player, 1);
+                }
+            }
+            db.ref(`accountability_v2/players/${player}/yesterdayStatus`).set(status);
+        }
+
+        function resetYesterdayStatus() {
+            if(confirm("בטוח שברצונך לנקות את הסטטוס של כולם? (מומלץ לעשות כל בוקר)")) {
+                playersList.forEach(p => {
+                    db.ref(`accountability_v2/players/${p}/yesterdayStatus`).set('pending');
+                });
+            }
+        }
+
+        function addHabit(player) {
+            let habitName = prompt(`הכנס שם הרגל חדש עבור ${player}:`);
+            if (habitName && habitName.trim() !== "") {
+                let habits = localData.players[player].habits || [];
+                habits.push({ name: habitName.trim(), missedDays: 0 });
+                db.ref(`accountability_v2/players/${player}/habits`).set(habits);
+            }
+        }
+
+        function removeHabit(player, index) {
+            if(confirm("בטוח שברצונך למחוק את ההרגל הזה?")) {
+                let habits = localData.players[player].habits || [];
+                habits.splice(index, 1);
+                db.ref(`accountability_v2/players/${player}/habits`).set(habits);
+            }
+        }
+
+        function updateHabitMiss(player, index, change) {
+            let habit = localData.players[player].habits[index];
+            let newMissedCount = (habit.missedDays || 0) + change;
+
+            if (newMissedCount < 0) newMissedCount = 0;
+
+            if (newMissedCount >= 2) {
+                alert(`⛔ פסילה! ${player} לא ביצע את ההרגל '${habit.name}' במשך יומיים ברצף.\nאל תשכח להוסיף לו קנס פה בטבלה.`);
+                let currentPenalties = localData.players[player].penalties || 0;
+                db.ref(`accountability_v2/players/${player}/penalties`).set(currentPenalties + 1);
+                newMissedCount = 0; 
+            }
+
+            db.ref(`accountability_v2/players/${player}/habits/${index}/missedDays`).set(newMissedCount);
+        }
+
+        function updatePenalty(player, change) {
+            let currentPenalties = localData.players[player].penalties || 0;
+            let newPenalties = currentPenalties + change;
+            if (newPenalties < 0) newPenalties = 0;
+            db.ref(`accountability_v2/players/${player}/penalties`).set(newPenalties);
+        }
+
+        function generateGroups() {
+            if (!confirm("הגרלה חדשה תאפס את הקבוצות הנוכחיות. להמשיך?")) return;
+
+            let shuffled = [...playersList].sort(() => 0.5 - Math.random());
+            let timestamp = new Date().toLocaleString('he-IL');
+
+            let newGroups = {
+                g1: shuffled.slice(0, 3),
+                g2: shuffled.slice(3, 6),
+                time: timestamp
+            };
+            db.ref('accountability_v2/groupsData').set(newGroups);
+        }
+
+        function sendToWhatsApp() {
+            let text = `*עדכון מחויבות יומי!* 🎯\n\n`;
+            
+            text += `*סיכום יומי:* 📝\n`;
+            
+            let totalDebt = 0;
+            playersList.forEach(p => {
+                let pData = localData.players[p];
+                
+                // 1. מחרוזת ההרגלים
+                let habitsArr = [];
+                if (pData.habits && pData.habits.length > 0) {
+                    pData.habits.forEach(h => {
+                        habitsArr.push(`${h.name} ${h.missedDays || 0}/2`);
+                    });
+                }
+                let habitsStr = habitsArr.length > 0 ? habitsArr.join(", ") : "אין הרגלים";
+                
+                // 2. סטטוס דיווח אתמול
+                let reportedIcon = "";
+                if (pData.yesterdayStatus === 'yes') reportedIcon = "✅ דיווח אתמול";
+                else if (pData.yesterdayStatus === 'no') reportedIcon = "❌ לא דיווח אתמול";
+                else reportedIcon = "⏳ טרם נבדק";
+                
+                // 3. חישוב קנסות בתוך קבוצות תשלום בלבד
+                let pens = pData.penalties || 0;
+                let penaltyStr = "אין קנסות";
+                
+                if (pens > 0) {
+                    let myGroup = [];
+                    if (localData.groupsData && localData.groupsData.g1) {
+                        if (localData.groupsData.g1.includes(p)) myGroup = localData.groupsData.g1;
+                        else if (localData.groupsData.g2.includes(p)) myGroup = localData.groupsData.g2;
+                    }
+                    
+                    if (myGroup.length > 0) {
+                        let oweTo = myGroup.filter(m => m !== p); // מסנן את החבר עצמו החוצה
+                        let amount = pens * 5;
+                        penaltyStr = `חייב ${amount}₪ ל${oweTo[0]} ו-${amount}₪ ל${oweTo[1]}`;
+                        totalDebt += (amount * 2);
+                    } else {
+                        // מקרה גיבוי אם טרם הוגרלו קבוצות
+                        penaltyStr = `חייב ${pens * 10}₪ סך הכל`;
+                        totalDebt += (pens * 10);
+                    }
+                }
+
+                // בניית שורת הווטסאפ לפי הבקשה שלך
+                text += `*${p}:* ${habitsStr} | ${reportedIcon}\n↳ ${penaltyStr}\n\n`;
+            });
+
+            text += `💰 *סה"כ חובות בקופה:* ${totalDebt} ש"ח`;
+
+            let encodedText = encodeURIComponent(text);
+            window.location.href = `whatsapp://send?text=${encodedText}`;
+        }
+    </script>
+</body>
+</html>
