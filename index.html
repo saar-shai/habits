@@ -1,3 +1,15 @@
+אופס, הבאג של ה-`undefined` (או `NaN`) קורה בגלל שכשמערכת פיירבייס טוענת את הנתונים בפעם הראשונה, המשתנה של הקנסות ריק במקום להיות "0", אז כשהקוד מנסה להכפיל אותו ב-10 הוא קורס ומציג מילים מוזרות. הוספתי לקוד תיקון קטן (Fallback ל-0) שפותר את זה לגמרי.
+
+לגבי הווטסאפ – צודק ב-100%. הודעה ארוכה חייבת להיות סופר מסודרת כדי שאנשים באמת יקראו אותה.
+עשיתי בדיוק מה שביקשת:
+
+1. **הקנסות עברו למעלה:** מיד אחרי הקבוצות, יש סעיף "חובות וקנסות" בולט שמפרט במדויק מי חייב למי וכמה, כדי שזה יהיה הדבר הראשון שרואים.
+2. **הרגלים ברורים:** במקום סתם `1/2`, זה מופיע עכשיו בשורה מסודרת מתחת לשם (עם ירידת שורה), וכתוב מפורשות: `✅ מדיטציה (0/2 פסילות ברצף)` או `⚠️ מדיטציה (1/2 פסילות ברצף)`.
+3. **סדר בעיניים:** הוספתי אימוג'ים ברורים, מפרידים (➖➖➖) וירידות שורה הגיוניות כדי שזה ייראה כמו דיווח מקצועי ולא כמו גוש טקסט.
+
+הנה הקוד המעודכן, העתק והדבק ב-GitHub (זכור לחכות ל-V הירוק ולרענן בגלישה בסתר או עם `Ctrl` + `F5`):
+
+```html
 <!DOCTYPE html>
 <html dir="rtl" lang="he">
 <head>
@@ -102,6 +114,8 @@
                 if (!data.players[p]) data.players[p] = { penalties: 0, habits: [], yesterdayStatus: 'pending' };
                 if (!data.players[p].habits) data.players[p].habits = [];
                 if (!data.players[p].yesterdayStatus) data.players[p].yesterdayStatus = 'pending';
+                // הגנת undefined במקרה של שחקן חדש במסד נתונים
+                if (data.players[p].penalties === undefined) data.players[p].penalties = 0;
             });
 
             localData = data;
@@ -136,7 +150,8 @@
 
             playersList.forEach(player => {
                 const pData = localData.players[player];
-                const debt = pData.penalties * 10; 
+                const pens = pData.penalties || 0; // מונע NaN
+                const debt = pens * 10; 
                 
                 let habitsHTML = "";
                 if(pData.habits && pData.habits.length > 0) {
@@ -167,7 +182,7 @@
                         <div class="player-header">
                             <h3>${player}</h3>
                             <div class="penalty-box">
-                                קנסות: <span>${pData.penalties}</span><br>(סה"כ ${debt}₪)
+                                קנסות: <span>${pens}</span><br>(סה"כ ${debt}₪)
                                 <div class="penalty-controls">
                                     <button class="btn-p" onclick="updatePenalty('${player}', -1)">-</button>
                                     <button class="btn-p" onclick="updatePenalty('${player}', 1)">+</button>
@@ -193,7 +208,6 @@
         }
 
         function setYesterdayStatus(player, status) {
-            // אם המנהל לחץ על X וזה עדיין לא היה מסומן כ-X, נציע להוסיף קנס.
             if (status === 'no' && localData.players[player].yesterdayStatus !== 'no') {
                 if(confirm(`להוסיף ל-${player} קנס אוטומטי על אי-דיווח?`)) {
                     updatePenalty(player, 1);
@@ -267,55 +281,69 @@
         function sendToWhatsApp() {
             let text = `*עדכון מחויבות יומי!* 🎯\n\n`;
             
-            text += `*סיכום יומי:* 📝\n`;
-            
+            if (localData.groupsData && localData.groupsData.g1) {
+                text += `*קבוצות:* קבוצה 1: ${localData.groupsData.g1.join(", ")} | קבוצה 2: ${localData.groupsData.g2.join(", ")}\n\n`;
+            }
+
+            // ---------- חלק 1: מי חייב למי (ממוקם למעלה) ----------
+            text += `*💸 חובות וקנסות:* \n`;
             let totalDebt = 0;
+            let hasDebts = false;
+
             playersList.forEach(p => {
                 let pData = localData.players[p];
-                
-                // 1. מחרוזת ההרגלים
-                let habitsArr = [];
-                if (pData.habits && pData.habits.length > 0) {
-                    pData.habits.forEach(h => {
-                        habitsArr.push(`${h.name} ${h.missedDays || 0}/2`);
-                    });
-                }
-                let habitsStr = habitsArr.length > 0 ? habitsArr.join(", ") : "אין הרגלים";
-                
-                // 2. סטטוס דיווח אתמול
-                let reportedIcon = "";
-                if (pData.yesterdayStatus === 'yes') reportedIcon = "✅ דיווח אתמול";
-                else if (pData.yesterdayStatus === 'no') reportedIcon = "❌ לא דיווח אתמול";
-                else reportedIcon = "⏳ טרם נבדק";
-                
-                // 3. חישוב קנסות בתוך קבוצות תשלום בלבד
                 let pens = pData.penalties || 0;
-                let penaltyStr = "אין קנסות";
                 
                 if (pens > 0) {
+                    hasDebts = true;
                     let myGroup = [];
-                    if (localData.groupsData && localData.groupsData.g1) {
-                        if (localData.groupsData.g1.includes(p)) myGroup = localData.groupsData.g1;
-                        else if (localData.groupsData.g2.includes(p)) myGroup = localData.groupsData.g2;
-                    }
+                    if (localData.groupsData && localData.groupsData.g1 && localData.groupsData.g1.includes(p)) myGroup = localData.groupsData.g1;
+                    else if (localData.groupsData && localData.groupsData.g2 && localData.groupsData.g2.includes(p)) myGroup = localData.groupsData.g2;
                     
                     if (myGroup.length > 0) {
-                        let oweTo = myGroup.filter(m => m !== p); // מסנן את החבר עצמו החוצה
+                        let oweTo = myGroup.filter(m => m !== p);
                         let amount = pens * 5;
-                        penaltyStr = `חייב ${amount}₪ ל${oweTo[0]} ו-${amount}₪ ל${oweTo[1]}`;
+                        text += `⛔ *${p}* חייב ${amount}₪ ל${oweTo[0]} ו-${amount}₪ ל${oweTo[1]}\n`;
                         totalDebt += (amount * 2);
                     } else {
-                        // מקרה גיבוי אם טרם הוגרלו קבוצות
-                        penaltyStr = `חייב ${pens * 10}₪ סך הכל`;
+                        text += `⛔ *${p}* חייב ${pens * 10}₪ סך הכל\n`;
                         totalDebt += (pens * 10);
                     }
                 }
-
-                // בניית שורת הווטסאפ לפי הבקשה שלך
-                text += `*${p}:* ${habitsStr} | ${reportedIcon}\n↳ ${penaltyStr}\n\n`;
             });
 
-            text += `💰 *סה"כ חובות בקופה:* ${totalDebt} ש"ח`;
+            if (!hasDebts) {
+                text += `כולם נקיים מקנסות כרגע! תותחים. 💪\n`;
+            }
+            text += `💰 סה"כ בקופה: ${totalDebt} ש"ח\n\n`;
+            text += `➖➖➖➖➖➖➖➖\n\n`;
+
+            // ---------- חלק 2: פירוט הרגלים לפי איש ----------
+            text += `*📝 פירוט יומי:*\n\n`;
+            
+            playersList.forEach(p => {
+                let pData = localData.players[p];
+                
+                // סטטוס דיווח אתמול
+                let reportedIcon = "";
+                if (pData.yesterdayStatus === 'yes') reportedIcon = "✅ הוגש";
+                else if (pData.yesterdayStatus === 'no') reportedIcon = "❌ לא הוגש";
+                else reportedIcon = "⏳ טרם נבדק";
+                
+                text += `👤 *${p}:* (דיווח אתמול: ${reportedIcon})\n`;
+
+                // הרגלים
+                if (pData.habits && pData.habits.length > 0) {
+                    pData.habits.forEach(h => {
+                        let misses = h.missedDays || 0;
+                        let hIcon = misses === 0 ? "✅" : "⚠️"; // וי אם אין פספוסים, סימן קריאה צהוב אם יש 1
+                        text += `  ${hIcon} ${h.name} (${misses}/2 פסילות ברצף)\n`;
+                    });
+                } else {
+                    text += `  אין הרגלים מוגדרים.\n`;
+                }
+                text += `\n`; // ירידת שורה אקסטרה בין בן אדם לבן אדם
+            });
 
             let encodedText = encodeURIComponent(text);
             window.location.href = `whatsapp://send?text=${encodedText}`;
@@ -323,3 +351,5 @@
     </script>
 </body>
 </html>
+
+```
